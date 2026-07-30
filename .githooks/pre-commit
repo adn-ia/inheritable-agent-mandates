@@ -1,0 +1,10 @@
+#!/bin/sh
+# La machine dit non, pas l'assistant.
+# Refuse le commit si typecheck ou tests d'invariants échouent.
+echo "→ pre-commit : npm run check"
+if ! npm run --silent check; then
+  echo ""
+  echo "❌ commit refusé : 'npm run check' a échoué. Corrige avant de committer."
+  echo "   (pour contourner en urgence : git commit --no-verify — à éviter)"
+  exit 1
+fi

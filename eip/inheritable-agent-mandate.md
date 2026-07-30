@@ -1,0 +1,209 @@
+---
+eip: <TBD>
+title: Inheritable Agent Mandates
+description: Control mandates bound to an agent's on-chain identity that are non-strippably inherited by spawned child agents.
+author: Helmy Mekaoui <helmymekaoui@gmail.com>
+discussions-to: https://ethereum-magicians.org/  # create a thread and paste the URL here
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-07-21
+requires: 721, 8004, 8226
+---
+
+## Abstract
+
+This ERC defines **inheritable agent mandates**: a set of control clauses — a spend
+cap, an expiry, a generation counter, a mandatory-liveness flag, a payee allowlist and a
+freeze (kill) switch — that are bound to an autonomous agent's on-chain identity and are
+**automatically and non-strippably inherited** by any child agent the parent spawns.
+
+A conforming registry enforces a single invariant at spawn time: **a child's mandate can
+never exceed its parent's** (`child ⊆ parent`). It also defines a *cascading freeze* (killing
+a parent deactivates its whole subtree) and an optional *soulbound* identity binding so that
+mandates cannot be stripped by transferring the identity.
+
+It is designed to compose with [ERC-8004](./eip-8004.md) for identity, [ERC-8226](./eip-8226.md)
+for the mandate clauses/enforcement, and [ERC-7710](./eip-7710.md) for delegation.
+
+## Motivation
+
+Autonomous AI agents increasingly hold on-chain funds and **spawn sub-agents** to
+parallelise work. The controls that exist today are all applied *per instance* and are
+*identity-agnostic*:
+
+- Account-abstraction session keys and policy engines (e.g. spend caps, payee allowlists)
+  are attached to a single delegated key or a single account.
+- ERC-8226 mandates carry spend caps, expiry, allowlists and a freeze, but are explicitly
+  identity-agnostic and silent on child agents.
+- ERC-8004 provides a portable agent identity but explicitly excludes payments, governance
+  and any control layer.
+- ERC-7710/7715 delegate bounded permissions, but caveats are fixed at delegation-creation
+  time with no automatic propagation to spawned children.
+
+The consequence is a structural gap: **the moment an agent spawns a child, the parent's
+limits are not carried over.** A compromised, misaligned or simply buggy agent can therefore
+escape its own constraints by *reproduction* — spawning a child that holds broader
+permissions than the parent was ever granted. Multi-agent research has documented that
+spawned sub-agents inherit capabilities and memory without isolation, so a local compromise
+propagates across agent boundaries.
+
+No existing standard binds control clauses to an agent's identity **and** guarantees they are
+inherited by, and non-strippable across, spawning. This ERC specifies exactly that
+intersection.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "SHOULD" and "MAY" are to be interpreted as described in
+RFC 2119 and RFC 8174.
+
+### Definitions
+
+- **Agent**: an on-chain identity, identified by an `agentId` (an ERC-8004 `agentId` /
+  ERC-721 `tokenId` MAY be used directly).
+- **Mandate**: the control clauses bound to an `agentId`.
+- **Parent / child**: an agent created by another agent via `spawn`.
+- **Guardian**: the authority (an address, multisig, timelock, or proof-of-personhood gate)
+  permitted to `mint`, `freeze` and `renew`.
+
+### Mandate structure
+
+```solidity
+struct Mandate {
+    uint256 maxSpendWei;   // cumulative spend cap enforced by the execution layer
+    uint64  validUntil;    // liveness expiry (unix seconds); 0 = no expiry
+    uint16  generations;   // remaining reproduction budget ("telomere"); decreases only
+    bool    requireLease;  // if true, the agent is inactive past validUntil until renewed
+    bool    frozen;        // kill switch
+}
+```
+
+Payees MAY be represented either as an enumerated allowlist or as a `bytes32 payeesRoot`
+(a Merkle root of allowed payee addresses) to bound gas. A conforming implementation MUST
+support at least one and document which.
+
+### Interface
+
+```solidity
+interface IInheritableAgentMandate {
+    event Minted(uint256 indexed agentId, address indexed owner);
+    event Spawned(uint256 indexed childId, uint256 indexed parentId);
+    event Frozen(uint256 indexed agentId);
+    event Renewed(uint256 indexed agentId, uint64 validUntil);
+
+    /// Create a root agent. Guardian-gated.
+    function mint(address owner, Mandate calldata m, bytes32 payeesRoot) external returns (uint256 agentId);
+
+    /// Spawn a child. MUST enforce `child ⊆ parent` (see below).
+    function spawn(uint256 parentId, address childOwner, Mandate calldata childMandate, bytes32 childPayeesRoot)
+        external returns (uint256 childId);
+
+    /// Kill switch. Guardian-gated. Cascades to descendants via `isActive`.
+    function freeze(uint256 agentId) external;
+
+    /// Renew the liveness lease (dead-man's switch). Guardian-gated.
+    function renew(uint256 agentId, uint64 validUntil) external;
+
+    function mandateOf(uint256 agentId) external view returns (Mandate memory);
+    function parentOf(uint256 agentId) external view returns (uint256);
+
+    /// True iff the agent and ALL ancestors are unfrozen and (if requireLease) unexpired.
+    function isActive(uint256 agentId) external view returns (bool);
+
+    /// The lineage-effective spend cap = min(maxSpendWei) over the agent and all ancestors.
+    function effectiveMaxSpendWei(uint256 agentId) external view returns (uint256);
+}
+```
+
+### The inheritance invariant (`child ⊆ parent`)
+
+`spawn` MUST revert unless **all** of the following hold, where `p = mandateOf(parentId)`
+and `c = childMandate`:
+
+1. `p.frozen == false` and (if `p.requireLease`) `p.validUntil >= block.timestamp`.
+2. `p.generations >= 1` and `c.generations == p.generations - 1`.
+3. `c.maxSpendWei <= p.maxSpendWei`.
+4. `c.validUntil == 0 ? p.validUntil == 0 : c.validUntil <= p.validUntil` (child expiry no
+   later than parent).
+5. `p.requireLease == true` implies `c.requireLease == true` (a child MUST NOT relax an
+   inherited liveness requirement).
+6. every payee authorised for the child MUST be authorised for the parent (enumerated
+   subset, or a `childPayeesRoot` proven to be a subset of the parent set).
+
+A caller MAY submit a `childMandate` that is stricter than the parent's; it MUST NOT submit
+one that is broader on any dimension.
+
+### Cascading freeze and effective bounds
+
+`isActive(agentId)` MUST walk from `agentId` up the `parentOf` chain and return `false` if
+any agent in the chain is `frozen`, or is `requireLease` and past `validUntil`. Thus freezing
+a parent deactivates its entire subtree, and letting a parent's lease lapse deactivates all
+descendants.
+
+`effectiveMaxSpendWei(agentId)` MUST return the minimum `maxSpendWei` across the agent and all
+ancestors. Execution-layer enforcers (e.g. an ERC-8226 enforcer, a paymaster, or a smart
+account) SHOULD gate an agent's transactions on `isActive` and `effectiveMaxSpendWei` rather
+than on the agent's own mandate alone.
+
+### Non-strippability and soulbound identity
+
+The mandate is part of the agent's registration, not data the agent controls; an agent
+therefore cannot rewrite its own mandate. To prevent stripping via *transfer*, a conforming
+identity used with this ERC:
+
+- SHOULD be **non-transferable (soulbound)**; or
+- if transferable (e.g. an ERC-8004 `agentId`), transfer MUST NOT reset or clear the mandate,
+  MUST be guardian-gated, and MUST preserve `parentOf`.
+
+## Rationale
+
+- **`child ⊆ parent`** bounds the blast radius of reproduction: a subtree of agents can only
+  ever be *less* capable than its root, so spawning cannot be used to escalate.
+- **`generations` (telomere)** bounds runaway self-replication without any external trigger;
+  it can only decrease, and there is deliberately no operation to increase it (no
+  "telomerase") except minting a fresh root agent, which is guardian-gated.
+- **Cascading freeze** gives a single, identity-scoped kill that stops a whole lineage at
+  once, rather than requiring each descendant to be found and stopped individually.
+- **Soulbound identity** closes the transfer-stripping hole: control clauses that travel with
+  a transferable token can be shed by moving the token.
+- **On-chain enforcement** (vs. off-chain policy) makes the constraints verifiable and
+  portable across wallets and agent frameworks, which is the property no single wallet-vendor
+  policy engine provides.
+
+## Backwards Compatibility
+
+This ERC adds a registry and does not modify existing standards. `agentId` MAY be an ERC-8004
+`agentId`. The mandate clauses are intentionally aligned with ERC-8226 so an ERC-8226 enforcer
+can consume `effectiveMaxSpendWei`/`isActive`. Delegations under ERC-7710 MAY be scoped to an
+`agentId` and checked against `isActive`.
+
+## Reference Implementation
+
+A minimal reference (`InheritableAgentMandate.sol`) implementing `mint`, `spawn` (with the
+full `child ⊆ parent` check), `freeze`, cascading `isActive`, and a non-transferable identity
+accompanies this proposal. It is unaudited and intended for illustration.
+
+## Security Considerations
+
+- **Off-chain / rogue runtimes.** On-chain mandates only bind agents whose actions route
+  through compliant accounts (smart account, paymaster, or ERC-8226 enforcer that consults
+  this registry). An agent that redeploys itself outside the registry, or whose runtime
+  ignores it, is not contained by this ERC; economic containment (funding) remains the
+  backstop for such cases.
+- **Guardian compromise.** The guardian can mint, freeze and renew. It SHOULD be a multisig,
+  timelock, or proof-of-personhood gate rather than a single hot key.
+- **Aggregate spend.** `effectiveMaxSpendWei` bounds each agent (the minimum cap along its lineage),
+  not the *sum* across many siblings: N children each under the cap can together exceed the root's.
+  Deployments that need an aggregate bound SHOULD partition the budget at spawn (debiting the parent)
+  rather than only enforcing a per-child ceiling.
+- **Liveness griefing.** A guardian that stops renewing deactivates a subtree by design
+  (dead-man's switch). Implementers SHOULD choose `validUntil` windows that tolerate renewal
+  latency.
+- **Payee revocation.** With a `payeesRoot`, revoking a payee requires updating the root;
+  implementations SHOULD emit an event on root changes.
+- **Reentrancy / gas.** `spawn` writes state after all checks; ancestor-walking views
+  (`isActive`, `effectiveMaxSpendWei`) are O(depth) and callers SHOULD bound lineage depth.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).

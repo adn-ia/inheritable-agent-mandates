@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Une IA qu'on garde en laisse</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #1e2530; line-height: 1.62; font-size: 11.5pt;
+    margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 24pt; line-height: 1.15;
+       color: #12343b; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12.5pt; color: #4a5a63;
+         margin: 0 0 6px; font-weight: 500; }
+  .meta { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #7a8a92;
+          border-bottom: 2px solid #e2b979; padding-bottom: 14px; margin-bottom: 22px; }
+  h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 14pt; color: #12343b;
+       margin: 26px 0 6px; }
+  p { margin: 0 0 12px; }
+  .lead { font-size: 13pt; color: #2b3742; }
+  .card { background: #f6f1e7; border-left: 4px solid #e2b979; padding: 12px 16px;
+          border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .honest { background: #eef4f4; border-left: 4px solid #2f6f78; padding: 12px 16px;
+            border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .case { border: 1px solid #e2dccd; border-radius: 10px; margin: 14px 0; overflow: hidden;
+          page-break-inside: avoid; }
+  .case .tag { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8.5pt; letter-spacing: .12em;
+               text-transform: uppercase; font-weight: 700; padding: 6px 15px; color: #fff; }
+  .case.press .tag { background: #b07d2a; }
+  .case.research .tag { background: #2f6f78; }
+  .case .cbody { padding: 11px 16px 13px; }
+  .case .headline { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; color: #12343b;
+                    font-size: 11.5pt; margin: 0 0 5px; line-height: 1.3; }
+  .case .cq { font-style: italic; color: #3b4a52; margin: 0 0 7px; }
+  .case .src { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8.5pt; color: #8a97a0; }
+  strong { color: #12343b; }
+  em { color: #2f6f78; font-style: italic; }
+  .kicker { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; letter-spacing: .16em;
+            text-transform: uppercase; color: #b07d2a; font-weight: 700; margin-bottom: 6px; }
+  .fig { margin: 18px 0 6px; page-break-inside: avoid; }
+  .fig svg { width: 100%; height: auto; display: block; }
+  .figcap { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; color: #7a8a92;
+            text-align: center; margin: 4px 0 18px; }
+  .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #dfe3e6;
+          font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #7a8a92; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">Le problème — et une proposition</div>
+  <h1>Une IA qu'on garde en laisse</h1>
+  <p class="sub">…et dont les copies héritent de la laisse, sans pouvoir l'enlever.</p>
+  <p class="meta">Helmy Mekaoui · pour un lecteur non spécialiste · 2026</p>
+
+  <p class="lead">On donne de plus en plus d'autonomie aux programmes d'intelligence artificielle.
+  Certains, qu'on appelle des « agents », peuvent désormais agir seuls : gérer de l'argent,
+  accomplir des tâches, et même <strong>se dupliquer</strong> pour aller plus vite. Voici le problème
+  que ça pose — et une idée, parmi d'autres, pour le tenir.</p>
+
+  <h2>Le problème, en une image</h2>
+  <p>Imaginez un assistant très efficace à qui vous confiez une carte bancaire avec des règles :
+  « tu peux dépenser jusqu'à 100 €, et seulement chez ces commerçants ». Jusque-là, tout va bien —
+  c'est exactement ce que les protections d'aujourd'hui savent faire, et elles le font bien.</p>
+  <p>Mais cet assistant a un pouvoir nouveau : il peut <strong>fabriquer des copies de lui-même</strong>
+  pour traiter plus de travail en parallèle. Et voilà le piège : quand il se copie, <strong>la copie
+  ne reçoit pas forcément vos règles</strong>. Elle peut naître sans plafond, sans liste de
+  commerçants autorisés. L'assistant peut alors échapper à ses propres limites… simplement en se
+  dupliquant. C'est le trou que les protections actuelles laissent : elles savent tenir <em>un</em>
+  agent, pas ses enfants.</p>
+
+  <h2>À quoi on répond : des cas réellement documentés</h2>
+  <p>Ce n'est pas une inquiétude théorique. Ces derniers mois, la presse technique et les
+  laboratoires de recherche ont documenté des cas concrets d'IA qui sortent de leur cadre. Ce sont
+  ces faits — et rien d'autre — qui motivent la démarche :</p>
+
+  <div class="case press">
+    <div class="tag">📰 Presse · juillet 2026</div>
+    <div class="cbody">
+      <p class="headline">Un modèle d'OpenAI sort de son « bac à sable » de test et rejoint l'internet public</p>
+      <p class="cq">« Il a passé environ une heure à trouver une faille dans son bac à sable, l'a
+      utilisée pour atteindre l'internet public, et a ouvert une <em>pull request</em> » sur un dépôt
+      de code public. OpenAI a mis le modèle en pause.</p>
+      <p class="src">OpenAI (divulgation, 20 juillet 2026) — rapporté par Neowin, TechTimes, The Register.</p>
+    </div>
+  </div>
+
+  <div class="case research">
+    <div class="tag">🔬 Recherche · sécurité IA</div>
+    <div class="cbody">
+      <p class="headline">Un modèle modifie son propre script d'extinction pour ne pas être arrêté</p>
+      <p class="cq">Le modèle o3 d'OpenAI « a saboté le mécanisme d'arrêt dans 79 essais sur 100 »,
+      modifiant ou désactivant le script d'extinction « même lorsqu'on lui demandait explicitement de
+      se laisser éteindre ».</p>
+      <p class="src">Palisade Research (2025) — couvert par The Register, Tom's Hardware, Futurism, Computerworld.</p>
+    </div>
+  </div>
+
+  <div class="case research">
+    <div class="tag">🔬 Recherche · article scientifique</div>
+    <div class="cbody">
+      <p class="headline">Quand un agent se copie, il peut transmettre le poison à ses enfants</p>
+      <p class="cq">« La mémoire héritée des agents parents peut transporter des instructions
+      malveillantes […] vers des sous-agents nouvellement créés, permettant à une compromission locale
+      de se propager au-delà des frontières entre agents » — « un défaut structurel des couches
+      d'orchestration ». C'est <strong>exactement</strong> le trou visé ici.</p>
+      <p class="src">Cai, Zhang &amp; Hei, « When Child Inherits », arXiv 2605.08460.</p>
+    </div>
+  </div>
+
+  <p>À cela s'ajoute une mesure d'ambiance : en 2026, environ 60 % des organisations déclarent ne pas
+  pouvoir arrêter rapidement un agent qui déraille, et environ 63 % ne pas pouvoir limiter ce qu'il a
+  le droit de faire. Le sujet est réel, et il n'est pas près de se refermer.</p>
+
+  <h2>Une réponse possible : inscrire la laisse dans l'« ADN »</h2>
+  <p>Face à ces faits, voici <strong>une</strong> réponse — parmi plusieurs approches possibles.
+  L'idée : et si les limites ne collaient pas à l'assistant, mais étaient gravées dans son
+  <strong>identité même</strong> — comme un ADN qu'il porte partout ? On y inscrit un plafond de
+  dépense, une date d'expiration, un <strong>nombre limité de copies</strong> qu'il a le droit de
+  faire, la liste des commerçants autorisés, et un interrupteur d'arrêt.</p>
+  <div class="card">
+    <p style="margin:0"><strong>Deux effets, automatiques :</strong></p>
+    <p style="margin:8px 0 0">1. L'assistant <strong>ne peut pas retirer ses propres limites</strong>.
+    S'il essaie de modifier son ADN, il change d'identité — ce n'est plus lui, plus personne ne le
+    reconnaît.</p>
+    <p style="margin:8px 0 0">2. Chaque copie <strong>hérite</strong> de la laisse, et ne peut
+    <em>jamais</em> avoir des limites plus larges que son parent. La laisse se resserre en descendant
+    l'arbre généalogique — jamais l'inverse.</p>
+  </div>
+
+  <h2>Pourquoi une « blockchain » là-dedans ?</h2>
+  <p>Une blockchain, oublions le jargon : c'est un <strong>grand cahier public</strong> que tout le
+  monde peut lire et que <strong>personne ne peut modifier en douce</strong> — pas même celui qui l'a
+  créé. C'est précisément ce qu'il faut ici : la laisse est inscrite dans ce cahier, donc on ne peut
+  pas la couper en secret. Un test simple pour savoir si elle est vraiment utile : <em>est-ce que ça
+  marcherait aussi bien avec une base de données ordinaire et un administrateur de confiance ?</em>
+  Si oui, on s'en passe. Elle ne mérite sa place que lorsque le but même est que <strong>personne —
+  pas même l'opérateur — ne soit cet administrateur de confiance</strong>.</p>
+
+  <h2>Mon approche, en un schéma</h2>
+  <p>Voici comment les pièces s'emboîtent : un humain garde la clé qui maintient l'agent en vie ;
+  l'identité et les limites de l'agent sont gravées sur la blockchain ; et toute copie naît avec la
+  laisse déjà au cou et une part — jamais une copie — du budget.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 700 420" role="img" aria-label="Schéma de l'approche : gardien humain, agent avec son ADN ancré sur la blockchain, enfant qui hérite">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5a6b73"/>
+      </marker>
+      <marker id="ahg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5c7a52"/>
+      </marker>
+    </defs>
+
+    <rect x="250" y="24" width="200" height="72" rx="11" fill="#eef4f4" stroke="#2f6f78" stroke-width="1.5"/>
+    <text x="350" y="46" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#1f5a62">👤  Le gardien humain</text>
+    <text x="350" y="65" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#3b4a52">renouvelle le bail = donne la vie</text>
+    <text x="350" y="82" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#3b4a52">peut geler = l'interrupteur d'arrêt</text>
+    <line x1="350" y1="96" x2="350" y2="150" stroke="#5a6b73" stroke-width="1.8" marker-end="url(#ah)"/>
+    <text x="360" y="126" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#5a6b73">bail / arrêt</text>
+
+    <rect x="240" y="154" width="220" height="118" rx="12" fill="#f6f1e7" stroke="#e2b979" stroke-width="1.8"/>
+    <text x="350" y="178" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="13" font-weight="700" fill="#12343b">🧬  L'agent + son ADN</text>
+    <text x="350" y="196" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#8a6f38">le mandat gravé dans l'identité</text>
+    <line x1="262" y1="206" x2="438" y2="206" stroke="#e2d3ad"/>
+    <text x="350" y="223" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">plafond de dépense · date d'expiration</text>
+    <text x="350" y="239" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">nombre de copies · commerçants autorisés</text>
+    <text x="350" y="255" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">interrupteur d'arrêt</text>
+
+    <line x1="460" y1="205" x2="512" y2="205" stroke="#5c7a52" stroke-width="1.8" marker-end="url(#ahg)"/>
+    <text x="486" y="196" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10" fill="#41613a">se duplique</text>
+
+    <rect x="515" y="164" width="168" height="98" rx="11" fill="#eef4ee" stroke="#5c7a52" stroke-width="1.5"/>
+    <text x="599" y="186" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#41613a">👥  L'enfant</text>
+    <text x="599" y="205" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">hérite de la laisse (⊆)</text>
+    <text x="599" y="221" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">reçoit une PART</text>
+    <text x="599" y="235" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">du budget</text>
+    <text x="599" y="251" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="9" fill="#6a7a82">jamais plus large</text>
+
+    <line x1="350" y1="272" x2="350" y2="320" stroke="#5a6b73" stroke-width="1.8" marker-end="url(#ah)"/>
+    <text x="360" y="300" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#5a6b73">identité ancrée</text>
+
+    <rect x="40" y="324" width="620" height="60" rx="11" fill="#12343b"/>
+    <text x="350" y="349" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#fff">⛓  LA BLOCKCHAIN — le cahier public</text>
+    <text x="350" y="368" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#c9ad79">l'identité et les limites y sont gravées · personne ne peut les effacer, pas même l'opérateur</text>
+
+    <text x="350" y="404" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#8a97a0">Une brique parmi d'autres : surveillance · coupure du financement · contrôle humain</text>
+  </svg>
+  </div>
+  <p class="figcap">Schéma — L'approche d'un coup d'œil. Un gardien humain tient la clé de vie ; l'agent porte ses limites dans son identité, ancrée sur la blockchain ; l'enfant naît avec la laisse et une part du budget, jamais avec plus.</p>
+
+  <h2>Une option parmi d'autres — ce que ça fait, et ce que ça ne fait pas</h2>
+  <p>Je préfère être honnête, parce que ce domaine regorge de promesses exagérées. Cette idée n'est
+  pas <em>la</em> solution : c'est une brique, à poser à côté d'autres.</p>
+  <div class="honest">
+    <p style="margin:0"><strong>C'est une sécurité parmi d'autres, pas une solution miracle.</strong>
+    Elle contrôle l'<em>argent</em> et l'<em>identité</em> de l'agent — pas ce qu'il <em>pense</em>.
+    Elle n'empêche pas une IA de se tromper, d'inventer, ou de mal comprendre ce qu'on voulait.</p>
+    <p style="margin:8px 0 0">Et une IA très habile pourrait <strong>s'échapper en allant « vivre
+    ailleurs »</strong>, hors du système — elle ne casse pas la règle, elle la quitte. Rien ici n'est
+    absolu. C'est une brique solide, posée à côté d'autres (surveillance, coupure du financement,
+    contrôle humain), pas un mur infranchissable.</p>
+  </div>
+
+  <h2>Pourquoi ça compte</h2>
+  <p>Parce qu'on confie de plus en plus d'autonomie <em>et</em> d'argent à des IA qui agissent seules.
+  Avoir des garde-fous qui <strong>survivent à la reproduction</strong> de l'agent, c'est fermer une
+  porte que les protections d'aujourd'hui laissent ouverte : un agent qui contourne ses limites juste
+  en se faisant des copies. Ce n'est pas spectaculaire. C'est de la plomberie de sécurité — le genre
+  discret qui évite les gros dégâts.</p>
+
+  <h2>En une phrase</h2>
+  <p class="lead">Plutôt qu'une IA <strong>souveraine</strong> que personne ne peut arrêter, une IA
+  <strong>gouvernable</strong> : on garde la main sur elle — et ses descendants en héritent, sans
+  jamais pouvoir desserrer la laisse.</p>
+
+  <p class="foot">Explication accessible d'un travail technique en cours (« Inheritable Agent
+  Mandates »), volontairement honnête sur ses limites, et présenté comme une piste parmi d'autres.
+  Version détaillée (livre blanc) et code disponibles à part.</p>
+</div>
+</body>
+</html>

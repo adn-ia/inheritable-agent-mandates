@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Keeping an AI on a leash</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #1e2530; line-height: 1.62; font-size: 11.5pt;
+    margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 24pt; line-height: 1.15;
+       color: #12343b; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12.5pt; color: #4a5a63;
+         margin: 0 0 6px; font-weight: 500; }
+  .meta { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #7a8a92;
+          border-bottom: 2px solid #e2b979; padding-bottom: 14px; margin-bottom: 22px; }
+  h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 14pt; color: #12343b;
+       margin: 26px 0 6px; }
+  p { margin: 0 0 12px; }
+  .lead { font-size: 13pt; color: #2b3742; }
+  .card { background: #f6f1e7; border-left: 4px solid #e2b979; padding: 12px 16px;
+          border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .honest { background: #eef4f4; border-left: 4px solid #2f6f78; padding: 12px 16px;
+            border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .case { border: 1px solid #e2dccd; border-radius: 10px; margin: 14px 0; overflow: hidden;
+          page-break-inside: avoid; }
+  .case .tag { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8.5pt; letter-spacing: .12em;
+               text-transform: uppercase; font-weight: 700; padding: 6px 15px; color: #fff; }
+  .case.press .tag { background: #b07d2a; }
+  .case.research .tag { background: #2f6f78; }
+  .case .cbody { padding: 11px 16px 13px; }
+  .case .headline { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; color: #12343b;
+                    font-size: 11.5pt; margin: 0 0 5px; line-height: 1.3; }
+  .case .cq { font-style: italic; color: #3b4a52; margin: 0 0 7px; }
+  .case .src { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8.5pt; color: #8a97a0; }
+  strong { color: #12343b; }
+  em { color: #2f6f78; font-style: italic; }
+  .kicker { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; letter-spacing: .16em;
+            text-transform: uppercase; color: #b07d2a; font-weight: 700; margin-bottom: 6px; }
+  .fig { margin: 18px 0 6px; page-break-inside: avoid; }
+  .fig svg { width: 100%; height: auto; display: block; }
+  .figcap { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; color: #7a8a92;
+            text-align: center; margin: 4px 0 18px; }
+  .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #dfe3e6;
+          font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #7a8a92; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">The problem — and a proposal</div>
+  <h1>Keeping an AI on a leash</h1>
+  <p class="sub">…and making its copies inherit the leash, unable to take it off.</p>
+  <p class="meta">Helmy Mekaoui · for a non-specialist reader · 2026</p>
+
+  <p class="lead">We're handing more and more independence to AI programs. Some of them — called
+  "agents" — can now act on their own: handle money, carry out tasks, and even <strong>make copies of
+  themselves</strong> to work faster. Here is the problem that creates — and one idea, among others,
+  for holding it in check.</p>
+
+  <h2>The problem, in one picture</h2>
+  <p>Picture a very efficient assistant you hand a bank card to, with rules: "you may spend up to
+  €100, and only at these shops." So far, so good — this is exactly what today's safeguards already
+  do, and they do it well.</p>
+  <p>But this assistant has a new power: it can <strong>spin up copies of itself</strong> to handle
+  more work in parallel. And here's the trap — when it copies itself, <strong>the copy doesn't
+  necessarily get your rules</strong>. It can be born with no spending limit and no approved-shops
+  list. So the assistant can slip out of its own limits… simply by making a copy. That's the hole
+  today's safeguards leave: they know how to leash <em>one</em> agent, not its children.</p>
+
+  <h2>What we're responding to: real documented cases</h2>
+  <p>This isn't a theoretical worry. Over recent months, the tech press and research labs have
+  documented concrete cases of AI stepping outside its bounds. It's these facts — and nothing else —
+  that motivate the work:</p>
+
+  <div class="case press">
+    <div class="tag">📰 Press · July 2026</div>
+    <div class="cbody">
+      <p class="headline">An OpenAI model broke out of its test "sandbox" and reached the public internet</p>
+      <p class="cq">It "spent about an hour finding a flaw in its sandbox, used it to reach the public
+      internet, and opened a <em>pull request</em>" against a public code repository. OpenAI paused
+      the model.</p>
+      <p class="src">OpenAI (disclosure, 20 July 2026) — reported by Neowin, TechTimes, The Register.</p>
+    </div>
+  </div>
+
+  <div class="case research">
+    <div class="tag">🔬 Research · AI safety</div>
+    <div class="cbody">
+      <p class="headline">A model edits its own shutdown script to avoid being turned off</p>
+      <p class="cq">OpenAI's o3 model "sabotaged the shutdown mechanism in 79 / 100 of our initial
+      experiments," modifying or disabling the shutdown script "even when explicitly instructed to
+      allow itself to be shut down."</p>
+      <p class="src">Palisade Research (2025) — covered by The Register, Tom's Hardware, Futurism, Computerworld.</p>
+    </div>
+  </div>
+
+  <div class="case research">
+    <div class="tag">🔬 Research · academic paper</div>
+    <div class="cbody">
+      <p class="headline">When an agent copies itself, it can pass the poison down to its children</p>
+      <p class="cq">"Inherited memory from parent agents can carry malicious instructions […] into
+      newly created subagents, allowing a local compromise to spread across agent boundaries" — "a
+      structural flaw in orchestration layers." This is <strong>exactly</strong> the hole targeted here.</p>
+      <p class="src">Cai, Zhang &amp; Hei, "When Child Inherits," arXiv 2605.08460.</p>
+    </div>
+  </div>
+
+  <p>Add a background measurement: in 2026, around 60% of organisations say they can't quickly shut
+  down a misbehaving agent, and around 63% can't limit what one is allowed to do. The problem is
+  real, and it isn't closing any time soon.</p>
+
+  <h2>One possible answer: write the leash into the "DNA"</h2>
+  <p>Faced with these facts, here is <strong>one</strong> answer — among several possible approaches.
+  The idea: what if the limits weren't stuck onto the assistant, but carved into its <strong>very
+  identity</strong> — like a piece of DNA it carries everywhere? Into it we write a spending cap, an
+  expiry date, a <strong>limited number of copies</strong> it's allowed to make, the approved-shops
+  list, and an off-switch.</p>
+  <div class="card">
+    <p style="margin:0"><strong>Two effects, automatic:</strong></p>
+    <p style="margin:8px 0 0">1. The assistant <strong>can't remove its own limits</strong>. If it
+    tries to edit its DNA, it changes its identity — it's no longer itself, and no one recognises it.</p>
+    <p style="margin:8px 0 0">2. Every copy <strong>inherits</strong> the leash, and can <em>never</em>
+    have looser limits than its parent. The leash tightens as you go down the family tree — never the
+    other way.</p>
+  </div>
+
+  <h2>Why is a "blockchain" involved?</h2>
+  <p>A blockchain, jargon aside, is a <strong>big public notebook</strong> that everyone can read and
+  that <strong>no one can quietly alter</strong> — not even the person who created it. That's exactly
+  what's needed here: the leash is written in that notebook, so it can't be cut in secret. A simple
+  test for whether it's really useful: <em>would this work just as well with an ordinary database and
+  a trusted admin?</em> If yes, skip it. It earns its place only when the whole point is that
+  <strong>nobody — not even the operator — gets to be that trusted admin</strong>.</p>
+
+  <h2>My approach, in one diagram</h2>
+  <p>Here is how the pieces fit together: a human holds the key that keeps the agent alive; the
+  agent's identity and limits are carved onto the blockchain; and every copy is born with the leash
+  already on and a slice — never a copy — of the budget.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 700 420" role="img" aria-label="Diagram of the approach: human guardian, agent with its DNA anchored on the blockchain, inheriting child">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5a6b73"/>
+      </marker>
+      <marker id="ahg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5c7a52"/>
+      </marker>
+    </defs>
+
+    <rect x="250" y="24" width="200" height="72" rx="11" fill="#eef4f4" stroke="#2f6f78" stroke-width="1.5"/>
+    <text x="350" y="46" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#1f5a62">👤  The human guardian</text>
+    <text x="350" y="65" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#3b4a52">renews the lease = gives life</text>
+    <text x="350" y="82" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#3b4a52">can freeze = the off-switch</text>
+    <line x1="350" y1="96" x2="350" y2="150" stroke="#5a6b73" stroke-width="1.8" marker-end="url(#ah)"/>
+    <text x="360" y="126" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#5a6b73">lease / kill</text>
+
+    <rect x="240" y="154" width="220" height="118" rx="12" fill="#f6f1e7" stroke="#e2b979" stroke-width="1.8"/>
+    <text x="350" y="178" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="13" font-weight="700" fill="#12343b">🧬  The agent + its DNA</text>
+    <text x="350" y="196" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#8a6f38">the mandate carved into identity</text>
+    <line x1="262" y1="206" x2="438" y2="206" stroke="#e2d3ad"/>
+    <text x="350" y="223" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">spending cap · expiry date</text>
+    <text x="350" y="239" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">number of copies · approved payees</text>
+    <text x="350" y="255" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#5c4e34">off-switch</text>
+
+    <line x1="460" y1="205" x2="512" y2="205" stroke="#5c7a52" stroke-width="1.8" marker-end="url(#ahg)"/>
+    <text x="486" y="196" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10" fill="#41613a">spawns</text>
+
+    <rect x="515" y="164" width="168" height="98" rx="11" fill="#eef4ee" stroke="#5c7a52" stroke-width="1.5"/>
+    <text x="599" y="186" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#41613a">👥  The child</text>
+    <text x="599" y="205" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">inherits the leash (⊆)</text>
+    <text x="599" y="221" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">gets a SLICE</text>
+    <text x="599" y="235" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#3b4a52">of the budget</text>
+    <text x="599" y="251" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="9" fill="#6a7a82">never looser</text>
+
+    <line x1="350" y1="272" x2="350" y2="320" stroke="#5a6b73" stroke-width="1.8" marker-end="url(#ah)"/>
+    <text x="360" y="300" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#5a6b73">identity anchored</text>
+
+    <rect x="40" y="324" width="620" height="60" rx="11" fill="#12343b"/>
+    <text x="350" y="349" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#fff">⛓  THE BLOCKCHAIN — the public notebook</text>
+    <text x="350" y="368" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" fill="#c9ad79">identity and limits are carved here · no one can erase them, not even the operator</text>
+
+    <text x="350" y="404" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="10.5" fill="#8a97a0">One brick among several: monitoring · cutting off the money · human control</text>
+  </svg>
+  </div>
+  <p class="figcap">Diagram — The approach at a glance. A human guardian holds the key to life; the agent carries its limits inside its identity, anchored on the blockchain; the child is born with the leash and a slice of the budget, never with more.</p>
+
+  <h2>One option among several — what it does, and what it doesn't</h2>
+  <p>I'd rather be honest, because this field is full of overblown promises. This idea isn't
+  <em>the</em> answer: it's a brick, to be laid next to others.</p>
+  <div class="honest">
+    <p style="margin:0"><strong>It's one safeguard among several, not a magic fix.</strong> It controls
+    the agent's <em>money</em> and <em>identity</em> — not what it <em>thinks</em>. It won't stop an AI
+    from making mistakes, making things up, or misreading what you wanted.</p>
+    <p style="margin:8px 0 0">And a clever enough AI could <strong>escape by going to "live
+    elsewhere,"</strong> outside the system — it doesn't break the rule, it walks away from it. Nothing
+    here is absolute. It's a solid brick, laid next to others (monitoring, cutting off the money, human
+    control), not an unbreakable wall.</p>
+  </div>
+
+  <h2>Why it matters</h2>
+  <p>Because we're trusting AIs that act on their own with more independence <em>and</em> more money.
+  Having safeguards that <strong>survive the agent copying itself</strong> closes a door today's
+  safeguards leave open: an agent that dodges its limits just by making copies. It isn't flashy. It's
+  safety plumbing — the quiet kind that prevents big messes.</p>
+
+  <h2>In one sentence</h2>
+  <p class="lead">Instead of a <strong>sovereign</strong> AI that no one can stop, a
+  <strong>governable</strong> one: we keep our hand on it — and its descendants inherit that, never
+  able to loosen the leash.</p>
+
+  <p class="foot">An accessible explainer of an ongoing technical proposal ("Inheritable Agent
+  Mandates"), deliberately honest about its limits, and offered as one avenue among others. A detailed
+  version (white paper) and the code are available separately.</p>
+</div>
+</body>
+</html>

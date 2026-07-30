@@ -1,0 +1,30 @@
+{
+  "name": "adn-ia",
+  "version": "0.0.4",
+  "private": true,
+  "type": "module",
+  "description": "Organisme numérique contrôlable + containment HÉRITABLE (clauses inscrites dans l'identité, héritées non-arrachables). Invariants vérifiés par la machine. Base Sepolia.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "wallet:new": "tsx scripts/generate-wallet.ts",
+    "wallet:info": "tsx scripts/wallet-info.ts",
+    "guardian:new": "tsx scripts/guardian-new.ts",
+    "guardian": "tsx scripts/guardian-sign.ts",
+    "reproduce": "tsx scripts/reproduce.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx tests/invariants.ts",
+    "check": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
