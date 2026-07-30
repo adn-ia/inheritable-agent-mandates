@@ -51,7 +51,11 @@ limits and allow/deny lists at the moment of signing, inside a secure enclave. t
 session keys scope what a delegated key may call and spend. MetaMask's Agent Wallet ships with
 daily caps, protocol allowlists, and a human tap for anything out of policy. On the standards
 side, ERC-8226 and thirdweb's Asset-Enforced Spend Mandate carry exactly the right *clauses* —
-caps, expiry, freeze — and ERC-8004 gives an agent a portable on-chain identity.
+caps, expiry, freeze — and ERC-8004 gives an agent a portable on-chain identity. And through 2026
+a wave of agent ERCs has gone further: ERC-8312 / ERC-1833 ("Bounded Agent Actions") meters an
+agent's spend against a granted capability tree *bound to its ERC-8004 identity*, deployed on
+testnet. So "control clauses bound to an on-chain identity" is now shipping, not hypothetical — the
+piece that is still missing is what happens to those bounds when the agent reproduces.
 
 But two things are always true. Each of these is attached to a *single* instance, and none of
 them cares *who the agent is* — the clauses float free of identity. Put those together and you
@@ -83,6 +87,7 @@ Written as three boxes, every existing *containment* option ticks at most two:
 | | On-chain identity | Control clauses | Inherited by child |
 |---|:---:|:---:|:---:|
 | ERC-8004 | ✅ | ❌ | ❌ |
+| ERC-8312 / 1833 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ❌ |
 | ERC-8226 / thirdweb mandate | ❌ | ✅ | ❌ |
 | CDP / MetaMask / session keys | ❌ | ✅ (per-instance) | ❌ |
 | custodian-kernel | ❌ | ✅ | ✅ (off-chain) |
