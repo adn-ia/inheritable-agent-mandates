@@ -285,8 +285,8 @@ The mechanism is written up as a draft EIP, "Inheritable Agent Mandates" (Standa
 on ERC-721/8004/8226/7710). It specifies the mandate, the `spawn` that enforces `child ⊆ parent` on
 every clause (cap, expiry, lease, payees) and decrements the generation counter, the cascading
 freeze, and the soulbound identity binding. It is built to **compose
-with** ERC-8004 (identity), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of them,
-not replace them. A minimal reference implementation comes with it.
+with** ERC-8004 (identity), ERC-8001 (the agent mandate it inherits), ERC-8312 / 1833 (bounded
+authority), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of them, not replace them. A minimal reference implementation comes with it.
 
 ---
 
