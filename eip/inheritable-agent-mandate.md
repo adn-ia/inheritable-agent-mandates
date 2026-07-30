@@ -42,16 +42,18 @@ parallelise work. The controls that exist today are all applied *per instance* a
 - ERC-7710/7715 delegate bounded permissions, but caveats are fixed at delegation-creation
   time with no automatic propagation to spawned children.
 
-The consequence is a structural gap: **the moment an agent spawns a child, the parent's
-limits are not carried over.** A compromised, misaligned or simply buggy agent can therefore
-escape its own constraints by *reproduction* — spawning a child that holds broader
-permissions than the parent was ever granted. Multi-agent research has documented that
-spawned sub-agents inherit capabilities and memory without isolation, so a local compromise
-propagates across agent boundaries.
+The consequence is a structural gap. Most of these controls do not travel to a spawned child at all;
+the one that does — ERC-8312's delegation-budget profile — carries an aggregate *spend* cap across
+the tree, but not the rest of the mandate. So a compromised, misaligned or simply buggy agent can
+still escape most of its constraints by *reproduction* — spawning a child that inherits, at best, a
+spend ceiling, while its payees, expiry, freeze and generation bound are not carried over. Multi-agent
+research has documented that spawned sub-agents inherit capabilities and memory without isolation, so
+a local compromise propagates across agent boundaries.
 
-No existing standard binds control clauses to an agent's identity **and** guarantees they are
-inherited by, and non-strippable across, spawning. This ERC specifies exactly that
-intersection.
+No existing standard binds the **whole** control mandate — spend cap *and* payees, expiry, cascading
+freeze, and a generation counter — to an agent's identity **and** guarantees it is inherited by, and
+non-strippable across, spawning. (ERC-8312's delegation-budget profile covers the aggregate-spend
+axis; this covers the rest, welded to identity.) This ERC specifies that intersection.
 
 ## Specification
 

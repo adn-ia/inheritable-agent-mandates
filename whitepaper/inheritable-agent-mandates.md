@@ -54,13 +54,21 @@ side, ERC-8226 and thirdweb's Asset-Enforced Spend Mandate carry exactly the rig
 caps, expiry, freeze — and ERC-8004 gives an agent a portable on-chain identity. And through 2026
 a wave of agent ERCs has gone further: ERC-8312 / ERC-1833 ("Bounded Agent Actions") meters an
 agent's spend against a granted capability tree *bound to its ERC-8004 identity*, deployed on
-testnet. So "control clauses bound to an on-chain identity" is now shipping, not hypothetical — the
-piece that is still missing is what happens to those bounds when the agent reproduces.
+testnet — and its authors have specified an aggregate-budget profile for *delegation trees*: one
+shared spend cap metered across an agent and the sub-agents it spawns, with the obvious escape
+("a capped node mints an uncapped child") explicitly closed. So not only "control clauses bound to
+identity" but even *aggregate spend across a spawned tree* is now being specified, not hypothetical.
+What's still missing is narrower: the inheritance of the **whole mandate** — not the spend total but
+the payees, the expiry, the cascading freeze, the generation counter — welded to identity so it
+can't be shed, bounding what each spawned child is *allowed to be*, clause by clause, rather than
+only what the tree may collectively spend.
 
-But two things are always true. Each of these is attached to a *single* instance, and none of
-them cares *who the agent is* — the clauses float free of identity. Put those together and you
-get the hole: **nobody carries a control into a spawned child.** The parent's limits simply
-don't travel.
+The remaining hole is specific. The wallet-level controls (CDP, session keys, ERC-8226) are attached
+to a *single* instance and float free of identity — they don't travel to a child at all. The one
+place a control *does* travel to a spawned tree — ERC-8312's delegation-budget profile — carries an
+aggregate *spend* cap, but not the rest of the leash. What doesn't yet travel, welded to identity and
+non-strippable, is the **whole mandate** — payees, expiry, cascading freeze, generation counter —
+bounding what each child is *allowed to be*, clause by clause, not only what the lineage may spend.
 
 ### 1.1 — Two things that share my word but aren't my idea
 
@@ -87,11 +95,11 @@ Written as three boxes, every existing *containment* option ticks at most two:
 | | On-chain identity | Control clauses | Inherited by child |
 |---|:---:|:---:|:---:|
 | ERC-8004 | ✅ | ❌ | ❌ |
-| ERC-8312 / 1833 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ❌ |
+| ERC-8312 / 1833 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ◐ (aggregate spend only) |
 | ERC-8226 / thirdweb mandate | ❌ | ✅ | ❌ |
 | CDP / MetaMask / session keys | ❌ | ✅ (per-instance) | ❌ |
 | custodian-kernel | ❌ | ✅ | ✅ (off-chain) |
-| **Inheritable Agent Mandates** | ✅ | ✅ | ✅ |
+| **Inheritable Agent Mandates** | ✅ | ✅ | ✅ (whole mandate) |
 
 ### 1.2 — This isn't hypothetical: a few documented cases
 
@@ -295,9 +303,11 @@ authority), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of t
 The corner is narrow and specific: containment that is native to the agent, **and** inherited by
 its children, **and** anchored to on-chain identity, that can't be shed — inherited *limits*, not
 the *ownership* of ERC-42424 or the *permissions* of enterprise IAM — every clause inherited as
-`child ⊆ parent`, so a subtree can only ever be *less* capable than its root. As of mid-2026 it looks largely
-unbuilt, the nearest movers each cover only two of the three legs, and the space around it is
-filling with money and moving fast. The point I care about most is smaller and, I hope, more
+`child ⊆ parent`, so a subtree can only ever be *less* capable than its root. As of mid-2026 the
+nearest mover (ERC-8312) has taken the aggregate-*spend* slice of exactly this — one shared cap
+across a delegation tree — which leaves the narrower, un-taken piece: the *whole* mandate (payees,
+expiry, cascading freeze, generation counter) inherited and welded to identity, beyond the spend
+total. The space around it is filling with money and moving fast. The point I care about most is smaller and, I hope, more
 durable than any land grab: **governable beats sovereign.** A body no one can freeze is a body no
 one can govern — and the honest place to stand is the controllable notch, while saying plainly
 where even that gives out.
