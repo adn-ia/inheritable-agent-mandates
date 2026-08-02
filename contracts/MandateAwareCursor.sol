@@ -62,6 +62,10 @@ interface IBoundedAgentAction is IERC165 {
 interface IInheritableAgentMandate {
     function isActive(uint256 agentId) external view returns (bool);
     function ownerOf(uint256 agentId) external view returns (address);
+    function mandateOf(uint256 agentId)
+        external
+        view
+        returns (uint256 maxSpendWei, uint16 telomere, bool requireLease, bool frozen);
 }
 
 /**
@@ -115,6 +119,9 @@ contract MandateAwareCursor is IBoundedAgentAction {
     error BadTransition();
     /// @notice Le refus propre à ce compteur : le mandat de l'agent n'est plus actif.
     error MandateInactive(uint256 agentId);
+    /// @notice Le plafond demandé pour l'enveloppe dépasse celui que le mandat porte
+    ///         pour cet agent. Refus écrit par nous, pas par le standard.
+    error CapExceedsMandate(uint256 requested, uint256 mandateCap);
 
     constructor(address mandateRegistry) {
         require(mandateRegistry != address(0), "mandate is zero");
@@ -144,6 +151,13 @@ contract MandateAwareCursor is IBoundedAgentAction {
 
         if (capabilityRoot != capabilityRootFor(cap, asset, agentId)) revert CapabilityMismatch();
         if (mandate.ownerOf(agentId) == address(0)) revert Unauthorized();
+
+        // --- second usage du crochet : le plafond de l'enveloppe ne peut pas
+        //     dépasser celui que le mandat porte pour cet agent. Refus écrit par
+        //     nous ; le standard ne le prévoit pas et ne peut pas le prévoir,
+        //     faute de savoir de quel agent il s'agit. ---
+        (uint256 mandateCap,,,) = mandate.mandateOf(agentId);
+        if (cap > mandateCap) revert CapExceedsMandate(cap, mandateCap);
 
         id = computeId(principal, capabilityRoot, salt);
         if (_records[id].status != Status.None) revert IdExists();

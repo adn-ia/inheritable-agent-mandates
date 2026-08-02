@@ -67,6 +67,7 @@ contract SeamDemoTest is Test {
         if (low.length < 4) return "revert sans donnee";
         bytes4 sel = bytes4(low[0]) | (bytes4(low[1]) >> 8) | (bytes4(low[2]) >> 16) | (bytes4(low[3]) >> 24);
         if (sel == MandateAwareCursor.MandateInactive.selector) return "MandateInactive(agentId)";
+        if (sel == MandateAwareCursor.CapExceedsMandate.selector) return "CapExceedsMandate(requested, mandateCap)";
         if (sel == MandateAwareCursor.CapabilityMismatch.selector) return "CapabilityMismatch()";
         if (sel == MandateAwareCursor.NotActive.selector) return "NotActive()";
         if (sel == MandateAwareCursor.BoundExceeded.selector) return "BoundExceeded()";
@@ -151,5 +152,54 @@ contract SeamDemoTest is Test {
         console2.log("   son spent rendu :", his.spent(hisId));
         console2.log("");
         console2.log("(mandate.isActive(enfant) vaut toujours :", mandate.isActive(childId), ")");
+    }
+
+    /// Plafond hérité — notre refus (code par nous) face au sien (mesure).
+    function test_demo_cap() public {
+        uint256 wide = 100 ether;
+        (uint256 mandateCap,,,) = mandate.mandateOf(childId);
+        console2.log("plafond du mandat pour l'enfant (wei) :", mandateCap);
+        console2.log("plafond demande pour l'enveloppe (wei) :", wide);
+
+        // ------------------------------------------------------------ N5
+        console2.log("");
+        console2.log("=== N5 - notre compteur (ILLUSTRATION : le refus est code par nous) ===");
+        bytes32 root = ours.capabilityRootFor(wide, ASSET, childId);
+        vm.prank(principal);
+        try ours.registerEnvelope(principal, root, 0, abi.encode(wide, ASSET, childId, keccak256("n5"))) returns (
+            bytes32
+        ) {
+            console2.log("registerEnvelope(cap = 100 ETH) : aboutit");
+        } catch (bytes memory low) {
+            console2.log("registerEnvelope(cap = 100 ETH) : reverte -", _reason(low));
+        }
+
+        // ------------------------------------------------------------ N6
+        console2.log("");
+        console2.log("=== N6 - SON registre non modifie, meme demande (MESURE) ===");
+        bytes32 hisRoot = keccak256(abi.encode(wide, ASSET));
+        vm.prank(principal);
+        try his.registerEnvelope(principal, hisRoot, 0, abi.encode(wide, ASSET, keccak256("n6"), bytes(""))) returns (
+            bytes32 hid
+        ) {
+            (uint256 cap,) = his.bound(hid);
+            console2.log("registerEnvelope(cap = 100 ETH) : aboutit");
+            console2.log("   son bound cap rendu  :", cap);
+            console2.log("   son remaining rendu  :", his.remaining(hid));
+        } catch (bytes memory low) {
+            console2.log("registerEnvelope(cap = 100 ETH) : reverte -", _reason(low));
+        }
+
+        // --- l'ajout du check casse-t-il quelque chose ? ---
+        console2.log("");
+        console2.log("=== non-regression apres l'ajout du check de plafond ===");
+        console2.log("supportsInterface(0x3985961d) rendu :", ours.supportsInterface(FROZEN_ID));
+        bytes32 okRoot = ours.capabilityRootFor(CAP_CHILD, ASSET, childId);
+        vm.prank(principal);
+        bytes32 okId = ours.registerEnvelope(principal, okRoot, 0, abi.encode(CAP_CHILD, ASSET, childId, keccak256("n5b")));
+        vm.prank(principal);
+        ours.advanceCursor(okId, abi.encode(uint256(0.05 ether)));
+        console2.log("comptage normal - spent rendu     :", ours.spent(okId));
+        console2.log("comptage normal - remaining rendu :", ours.remaining(okId));
     }
 }

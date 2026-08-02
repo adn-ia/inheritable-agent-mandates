@@ -70,11 +70,39 @@ son advanceCursor, mandat gelé    : ABOUTIT
 (mandate.isActive(enfant) vaut toujours false)
 ```
 
+### N5 — plafond hérité, notre compteur
+
+```
+plafond du mandat pour l'enfant   : 0.4 ETH
+plafond demandé pour l'enveloppe  : 100 ETH
+
+registerEnvelope(cap = 100 ETH)   : REVERTE — CapExceedsMandate(requested, mandateCap)
+```
+
+### N6 — plafond hérité, son registre non modifié
+
+```
+registerEnvelope(cap = 100 ETH)   : ABOUTIT
+   son bound cap                  : 100 ETH
+   son remaining                  : 100 ETH
+```
+
+### Non-régression, après l'ajout du contrôle de plafond
+
+```
+supportsInterface(0x3985961d)     : true
+comptage normal — spent           : 0.05 ETH
+comptage normal — remaining       : 0.35 ETH
+```
+
+N1 à N4 rendent exactement les mêmes valeurs qu'avant l'ajout.
+
 ### Contrôles
 
 ```
-MandateAwareCursor compile SEUL, sans sa source  : 4 483 octets (solc 0.8.36)
-suites d'intégration (seam + démo)               : 2 tests, 0 échec
+MandateAwareCursor compile SEUL, sans sa source  : 4 793 octets (solc 0.8.36)
+   dont le crochet de plafond                    : +310 octets (4 483 → 4 793)
+suites d'intégration (seam + démo)               : 3 tests, 0 échec
 son src/ et test/                                : intacts, aucun octet changé
 son dépôt dans notre index                       : aucun fichier
 ```
@@ -99,6 +127,19 @@ Le contraste avec N4 garde néanmoins sa valeur, à condition de nommer l'asymé
 est codé, le sien est observé.** Son registre, non modifié, laisse passer la dépense sur une lignée
 que le mandat déclare gelée — ça, c'est une mesure, pas une construction.
 
+**N5 relève exactement du même statut.** Le refus d'une enveloppe à 100 ETH pour un enfant plafonné
+à 0,4 vient d'une ligne que nous avons écrite :
+
+```solidity
+(uint256 mandateCap,,,) = mandate.mandateOf(agentId);
+if (cap > mandateCap) revert CapExceedsMandate(cap, mandateCap);
+```
+
+Là encore, rien n'est découvert : nous décidons de refuser, puis nous l'exécutons. **N6 est le fait.**
+Son registre, non modifié, accepte pour ce même enfant une enveloppe de 100 ETH et lui ouvre
+immédiatement 100 ETH de réserve. C'est le trou (b) du seam test, mesuré une seconde fois et remis
+à côté du remède.
+
 ### Ce qui est réellement établi — le code pouvait le rater
 
 **N1 — le comptage normal est préservé.** Hors gel, notre compteur se comporte comme le sien :
@@ -114,6 +155,11 @@ valeur calculée aurait divergé de la sienne — N2 aurait rendu `false`. La r�
 Ces deux points forment le résultat qui compte : **le chaperon peut être ajouté sans casser le
 compteur.** Ce n'était pas acquis d'avance.
 
+**Et il tient au second ajout.** Après le contrôle de plafond, `supportsInterface(0x3985961d)` rend
+toujours `true`, et le comptage normal rend toujours 0,05 dépensé pour 0,35 restant — les mêmes
+chiffres qu'avant, au wei près. Le coût est de **310 octets** de bytecode (4 483 → 4 793). Un second
+crochet pouvait très bien casser ce que le premier avait préservé ; les sorties disent que non.
+
 ### Le crochet, et ce qu'il rend visible
 
 Le seam test avait relevé un fait structurel : sa struct `Envelope` ne porte aucun champ d'identité
@@ -124,11 +170,16 @@ Notre `capabilityRoot` engage en plus l'adresse du registre de mandats et l'`age
 l'enveloppe conserve celui-ci : `agentIdOf` rend `2`, l'identifiant de l'enfant. C'est le champ
 absent de sa structure.
 
-Ce crochet est ce qui rend adressables les deux manques mesurés dans le seam test. Le **gel** (point
-c) devient consultable parce que le compteur sait de quel agent il mesure la dépense. Le **plafond
-hérité** (point b) devient vérifiable pour la même raison : un compteur qui connaît l'`agentId` peut
-interroger le mandat, là où une enveloppe anonyme ne le peut pas. Le premier est démontré ici ; le
-second ne l'est pas — il découle du même crochet, mais nous ne l'avons pas exécuté.
+**Ce même crochet ferme les deux manques du seam test, et il n'en faut pas deux.** Le **gel**
+(point c) devient consultable parce que le compteur sait de quel agent il mesure la dépense : c'est
+`mandate.isActive(agentId)` en N3. Le **plafond hérité** (point b) devient vérifiable par la même
+lecture : c'est `mandate.mandateOf(agentId)` en N5. Deux manques, deux appels, **un seul `agentId`
+retenu dans l'enveloppe**.
+
+C'est aussi ce qui montre pourquoi le standard ne peut pas faire ces contrôles lui-même. Ce n'est
+pas un oubli de conception : une enveloppe qui ne sait pas de quel agent elle porte l'autorité n'a
+aucun moyen d'aller demander au mandat s'il est gelé, ni quel plafond il porte. Le crochet
+d'identité n'est pas une commodité — c'est ce sans quoi la question ne peut même pas être posée.
 
 ---
 
