@@ -4,12 +4,15 @@ import { fileURLToPath } from "node:url";
 import solc from "solc";
 
 /**
- * Compile contracts/InheritableAgentMandate.sol et écrit l'ABI + le bytecode
- * dans build/InheritableAgentMandate.json. Aucun réseau, aucune clé : compilation pure.
+ * Compile un contrat et écrit l'ABI + le bytecode dans build/<Contrat>.json.
+ * Aucun réseau, aucune clé : compilation pure.
+ *
+ *   npx tsx scripts/compile.ts                     # InheritableAgentMandate (défaut)
+ *   npx tsx scripts/compile.ts ProvenanceRegistry
  */
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCE = "contracts/InheritableAgentMandate.sol";
-const CONTRACT = "InheritableAgentMandate";
+const CONTRACT = process.argv[2] ?? "InheritableAgentMandate";
+const SOURCE = `contracts/${CONTRACT}.sol`;
 
 const input = {
   language: "Solidity",
