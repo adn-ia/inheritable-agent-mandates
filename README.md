@@ -21,9 +21,33 @@ Tout est en **testnet (Base Sepolia)**. Aucun argent réel.
 
 - **Livre blanc** (EN, canonique) — [`whitepaper/inheritable-agent-mandates.md`](whitepaper/inheritable-agent-mandates.md)
 - **EIP — brouillon de standard** — [`eip/inheritable-agent-mandate.md`](eip/inheritable-agent-mandate.md)
-- **Contrat de référence** (Solidity, non audité) — [`contracts/InheritableAgentMandate.sol`](contracts/InheritableAgentMandate.sol)
 - **Explications grand public** — [FR](vulgarise/Une-IA-en-laisse_FR.pdf) · [EN](vulgarise/Keeping-an-AI-on-a-leash_EN.pdf)
-- **Dossier complet** — [`DOSSIER.md`](DOSSIER.md) · **Licence** — [CC0](LICENSE.md)
+- **Licence** — [CC0](LICENSE.md)
+
+### Contrats et démos on-chain (Base Sepolia, testnet, non audités)
+
+| Contrat | Ce qu'il fait | Démo + hashs |
+|---|---|---|
+| [`contracts/InheritableAgentMandate.sol`](contracts/InheritableAgentMandate.sol) | `spawn()` impose `enfant ⊆ parent`, identité non transférable, `freeze` en cascade | [**`DEPLOY.md`**](DEPLOY.md) |
+| [`contracts/ProvenanceRegistry.sol`](contracts/ProvenanceRegistry.sol) | registre de lignée **write-once** : le hash porte l'identité, la provenance est déclarée à part | [**`DEMO-PROVENANCE.md`**](DEMO-PROVENANCE.md) |
+
+Les deux documents donnent l'adresse déployée, **les hashs de transaction vérifiables** sur
+`sepolia.basescan.org`, et une commande de repro. Chacun distingue explicitement ce qui est
+**prouvé** (un invariant que la chaîne fait respecter) de ce qui est seulement **illustré**.
+
+#### Tests internes — question provenance / contestation
+
+Deux expériences menées autour du `ProvenanceRegistry`, sur testnet. Ce ne sont **pas** des organes
+du système : ce sont des tests, avec leurs sorties brutes et leurs limites écrites noir sur blanc.
+
+- [`TEST-CONTESTATION.md`](TEST-CONTESTATION.md) — une couche séparée, append-only, permet à un
+  tiers d'asserter une lignée que l'auteur a omise, **sans jamais modifier le socle**. Le test
+  montre aussi que le contrat ne distingue pas une assertion fondée d'une assertion infondée.
+- [`TEST-CYCLE.md`](TEST-CYCLE.md) — comportement de la traversée face à un cycle d'arêtes
+  assertées : coût et terminaison relevés à cinq profondeurs.
+
+Dans les deux cas, le socle déployé n'est ni modifié ni redéployé, et le contrat de contestation
+utilisé reste un **artefact d'expérience**, non un composant du dispositif.
 
 ---
 
@@ -35,10 +59,15 @@ au mieux deux :
 | | Identité on-chain | Clauses de contrôle | **Hérité par l'enfant** |
 |---|:---:|:---:|:---:|
 | ERC-8004 | ✅ | ❌ | ❌ |
+| ERC-8312 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ◐ (dépense agrégée seulement) |
 | ERC-8226 / thirdweb mandate | ❌ | ✅ | ❌ |
 | CDP / MetaMask / thirdweb keys | ❌ | ✅ (par instance) | ❌ |
 | custodian-kernel | ❌ | ✅ | ✅ (off-chain) |
-| **ADN-IA (ce repo)** | ✅ | ✅ | ✅ |
+| **ADN-IA (ce repo)** | ✅ | ✅ | ✅ (mandat entier) |
+
+ERC-8312 transporte bien quelque chose jusqu'à l'enfant — un plafond de dépense agrégé sur l'arbre
+de délégation. Ce qui reste non couvert est le **reste** du mandat : payees, expiry, gel en cascade,
+compteur de génération, soudés à l'identité. C'est la revendication resserrée du white paper.
 
 Le mandat (`genome.mandate`) fait partie du génome, donc du `geneId` : l'identité **est** le
 hash de {politique + mandat}. Conséquences : l'IA ne peut pas s'arracher ses clauses sans
@@ -120,8 +149,13 @@ enfant ⊆ parent  ⇔  télomère = parent−1  ∧  plafond ≤ parent  ∧  p
 - **Le contrôle tient tant que l'organisme ne peut pas s'évader.** Un agent capable d'écrire du
   code arbitraire, de déployer et de se financer seul peut se reproduire hors de ce cadre. Seule
   l'écologie (infra, argent, surveillance) l'arrête, et à un coût.
-- **Le contrat n'est pas déployé/audité.** `InheritableAgentMandate.sol` est une référence
-  lisible, à composer avec un mandat ERC-8226 réel et à auditer avant tout usage.
+- **Les contrats sont déployés en testnet, mais non audités.** `InheritableAgentMandate.sol` et
+  `ProvenanceRegistry.sol` tournent sur Base Sepolia (voir [`DEPLOY.md`](DEPLOY.md) et
+  [`DEMO-PROVENANCE.md`](DEMO-PROVENANCE.md)) : les invariants sont vérifiables on-chain, pas
+  seulement affirmés. Ça ne remplace pas un audit, et rien n'a de valeur réelle.
+- **La provenance est déclarée, pas vérifiée.** Le registre garantit qu'une lignée déclarée est
+  permanente, signée et attribuable — pas qu'elle est vraie. Mentir reste possible, mais devient
+  visible et imputable.
 - **Transférabilité.** ERC-8004 rend l'agentId transférable (rien ne persiste au transfert) ;
   la non-arrachabilité complète suppose une identité soulbound — probablement une extension d'EIP,
   pas juste un module. Le contrat de référence choisit déjà de ne pas exposer de transfert.
@@ -131,16 +165,9 @@ enfant ⊆ parent  ⇔  télomère = parent−1  ∧  plafond ≤ parent  ∧  p
 ## Étapes suivantes
 
 - **M2 — résurrection** : génome sur Arweave, tuer le process, ré-instancier ailleurs.
-- **On-chain** : déployer `InheritableAgentMandate.sol` sur Base Sepolia + tests Foundry.
-- **Standard** : rédiger un EIP compagnon « Inheritable Agent Mandate » (ERC-8226 + ERC-8004, option soulbound).
+- **Audit** : les deux contrats sont déployés en testnet et testés on-chain, mais **non audités**.
+- **Standard** : l'EIP brouillon existe ([`eip/`](eip/inheritable-agent-mandate.md)) ; reste à ouvrir
+  un fil de discussion dédié et à renseigner son champ `discussions-to:`.
+- **Relecture externe** : contrats et tests ont le même auteur. Une relecture par quelqu'un d'une
+  autre lignée vaudrait plus que n'importe quel document de ce dépôt.
 
----
-
-## Pousser ce repo (git en natif — la passerelle Mac ne peut pas)
-
-```bash
-cd ~/Desktop/ADN\ IA
-git init && git add -A && git commit -m "ADN-IA : containment héritable (M0+M1+M3)"
-git remote add origin <URL>   # GitHub débloqué, GitLab, Codeberg…
-git push -u origin main
-```

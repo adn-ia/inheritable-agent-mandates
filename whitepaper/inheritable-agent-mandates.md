@@ -52,7 +52,7 @@ session keys scope what a delegated key may call and spend. MetaMask's Agent Wal
 daily caps, protocol allowlists, and a human tap for anything out of policy. On the standards
 side, ERC-8226 and thirdweb's Asset-Enforced Spend Mandate carry exactly the right *clauses* —
 caps, expiry, freeze — and ERC-8004 gives an agent a portable on-chain identity. And through 2026
-a wave of agent ERCs has gone further: ERC-8312 / ERC-1833 ("Bounded Agent Actions") meters an
+a wave of agent ERCs has gone further: ERC-8312 ("Bounded Agent Actions") meters an
 agent's spend against a granted capability tree *bound to its ERC-8004 identity*, deployed on
 testnet — and its authors have specified an aggregate-budget profile for *delegation trees*: one
 shared spend cap metered across an agent and the sub-agents it spawns, with the obvious escape
@@ -95,7 +95,7 @@ Written as three boxes, every existing *containment* option ticks at most two:
 | | On-chain identity | Control clauses | Inherited by child |
 |---|:---:|:---:|:---:|
 | ERC-8004 | ✅ | ❌ | ❌ |
-| ERC-8312 / 1833 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ◐ (aggregate spend only) |
+| ERC-8312 (Bounded Agent Actions) | ✅ (via 8004) | ✅ | ◐ (aggregate spend only) |
 | ERC-8226 / thirdweb mandate | ❌ | ✅ | ❌ |
 | CDP / MetaMask / session keys | ❌ | ✅ (per-instance) | ❌ |
 | custodian-kernel | ❌ | ✅ | ✅ (off-chain) |
@@ -293,8 +293,9 @@ The mechanism is written up as a draft EIP, "Inheritable Agent Mandates" (Standa
 on ERC-721/8004/8226/7710). It specifies the mandate, the `spawn` that enforces `child ⊆ parent` on
 every clause (cap, expiry, lease, payees) and decrements the generation counter, the cascading
 freeze, and the soulbound identity binding. It is built to **compose
-with** ERC-8004 (identity), ERC-8001 (the agent mandate it inherits), ERC-8312 / 1833 (bounded
-authority), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of them, not replace them. A minimal reference implementation comes with it.
+with** ERC-8004 (identity), ERC-8001 (the agent mandate it inherits), ERC-8312 (Bounded Agent
+Actions), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of them, not replace them.
+A minimal reference implementation comes with it.
 
 ---
 

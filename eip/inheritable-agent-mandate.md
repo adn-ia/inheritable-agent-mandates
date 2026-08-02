@@ -24,7 +24,7 @@ a parent deactivates its whole subtree) and an optional *soulbound* identity bin
 mandates cannot be stripped by transferring the identity.
 
 It is designed to compose with [ERC-8004](./eip-8004.md) for identity, ERC-8001 for the agent
-mandate/agreement it inherits, ERC-8312 / ERC-1833 for bounded authority, [ERC-8226](./eip-8226.md)
+mandate/agreement it inherits, ERC-8312 (Bounded Agent Actions) for bounded authority, [ERC-8226](./eip-8226.md)
 for the mandate clauses/enforcement, and [ERC-7710](./eip-7710.md) for delegation.
 
 ## Motivation
