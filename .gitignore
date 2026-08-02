@@ -21,3 +21,8 @@ notes/
 
 # artefacts de compilation / déploiement
 build/
+
+# clone de la source ERC-8312 pour le test de couture — jamais committé
+integration/bounded-agent-actions/
+integration/out/
+integration/cache/

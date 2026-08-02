@@ -1,0 +1,25 @@
+# Test de couture avec le registre de référence ERC-8312.
+#
+# Sa source n'est PAS dans ce dépôt. Cloner son repo ici même :
+#   cd integration && git clone https://github.com/ERC8312/bounded-agent-actions.git
+#   cd bounded-agent-actions && forge install foundry-rs/forge-std && cd ..
+#   forge test -vv
+#
+# bounded-agent-actions/ est gitignoré : on l'importe en lecture seule, on ne le
+# modifie jamais, et il ne rentre pas chez nous.
+
+[profile.default]
+src = "test"
+test = "test"
+out = "out"
+libs = []
+allow_paths = [".."]
+solc = "0.8.24"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  "bounded/=bounded-agent-actions/src/",
+  "forge-std/=bounded-agent-actions/lib/forge-std/src/",
+  "adn/=../contracts/",
+]
