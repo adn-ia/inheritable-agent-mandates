@@ -123,6 +123,19 @@ loin.
 à faire, pas un résultat de ce run — et il n'est mentionné que parce que la borne qui produit le bon
 comportement en T1 est la même que celle qui produirait ce comportement-là.
 
+### Ce que la borne fait à la question elle-même
+
+Dans ce test, toutes les profondeurs rendent `false` : le contraste n'y est pas visible. Il l'est
+dans l'exécution précédente ([`TEST-CONTESTATION.md`](TEST-CONTESTATION.md), P5), où la **même
+paire** est rendue `false` à `maxDepth = 1` et `true` à `maxDepth = 2`. Aucune donnée n'avait changé
+entre les deux appels ; seule la profondeur demandée différait.
+
+Ce que la lecture rend n'est donc pas une propriété de la paire, mais une propriété de la paire **à
+une profondeur donnée**. La conséquence dépasse le coût en gaz : une réponse « ces deux-là sont
+indépendants » n'a de sens que rapportée à l'horizon sur lequel on a regardé, et cet horizon est un
+paramètre de la question, pas une caractéristique du monde. Une borne courte ne rend pas seulement
+la traversée moins chère — elle rend la question plus facile, et la réponse plus rassurante.
+
 ---
 
 ## Limites
