@@ -171,3 +171,19 @@ enfant ⊆ parent  ⇔  télomère = parent−1  ∧  plafond ≤ parent  ∧  p
 - **Relecture externe** : contrats et tests ont le même auteur. Une relecture par quelqu'un d'une
   autre lignée vaudrait plus que n'importe quel document de ce dépôt.
 
+### Non-contournabilité — le prochain chantier
+
+L'interface, le compteur et le mandat ne peuvent pas être non-contournables à eux seuls : rien ne
+force la valeur à passer par eux (un agent qui garde ses clés dépense à côté). La
+non-contournabilité s'obtient au niveau du **substrat**, en faisant du mandat la seule porte — soit
+par **custody** (le substrat détient les actifs, l'agent n'a pas les clés de l'argent), soit par une
+**porte d'exécution** (compte AA / ERC-4337-7579 dont l'unique chemin passe par un module qui vérifie
+le mandat).
+
+**Question ouverte :** ancrer le mandat dans un tel substrat pour que la non-contournabilité soit une
+**propriété**, pas une promesse.
+
+**Plafond honnête :** un agent capable de code arbitraire et d'auto-financement s'échappe de toute
+cage unique ; le résidu est borné par le coût et l'écologie, pas nul — « moins probable, plus
+visible ».
+
