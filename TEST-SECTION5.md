@@ -125,6 +125,31 @@ freeze(mandat d'alice) — SANS aucun appel à revoke
    spentRoot        : 10 ETH   (inchangé)
 ```
 
+### N3b — la vue additive, à côté de la vue spec-exacte
+
+```
+avant gel  — isPathActive : true    isDrawable : true
+freeze(mandat), sans revoke
+après gel  — isPathActive : true    isDrawable : false
+             draw          : REVERTE — MandateFrozen(agent, agentId)
+
+après un revoke explicite, en plus du gel
+             isPathActive : false   isDrawable : false
+
+nœud sans mandat adossé (comportement de référence)
+             isPathActive : true    isDrawable : true
+```
+
+Ses neuf tests de conformité, relancés **après** l'ajout de `isDrawable` :
+
+```
+9 passed; 0 failed; 0 skipped
+```
+
+Gaz identique à l'unité près sur les neuf. `type(IAggregateBudget).interfaceId` vaut toujours
+`0xc7cabe86` — l'ajout est hors interface, donc l'empreinte ne dérive pas. Son fichier de
+conformité n'a pas bougé : SHA-256 `7504e535…85aa18`, identique à la version committée.
+
 ### N4 — contraste, son cursor non modifié
 
 ```
@@ -213,17 +238,30 @@ Nous n'avons pas touché son dépôt : la copie était jetable, hors de son arbr
 SHA-256 de son fichier est resté identique à la version committée pendant toute l'opération. Le
 correctif tient en un mot-clé, et il lui appartient.
 
-### Une nuance de conception, de notre côté
+### L'écart entre la vue et la transaction — réglé de façon additive
 
-En N3, `isPathActive` rend `true` alors que `draw` reverte. Notre pont agit dans `draw`, pas dans la
-vue de chemin : les deux ne disent donc pas la même chose au même moment. Un consommateur qui
-lirait `isPathActive` pour décider s'il peut dépenser recevrait une réponse démentie par la
-transaction suivante.
+En N3, `isPathActive` rend `true` alors que `draw` reverte. Le pont agit dans `draw`, pas dans la
+vue de chemin : un consommateur qui lirait `isPathActive` pour décider s'il peut dépenser recevrait
+une réponse démentie par la transaction suivante.
 
-C'est un choix discutable, et nous ne le cachons pas. Faire mentir la vue dans l'autre sens — la
-rendre fausse dès que le mandat est gelé — serait défendable, mais changerait la sémantique d'une
-vue que la Section 5 définit par la révocation seule, et pourrait faire échouer sa conformité. Nous
-avons préféré rester conformes et signaler l'écart plutôt que le résoudre unilatéralement.
+Deux façons de traiter ça. Faire rendre `false` à `isPathActive` dès que le mandat est gelé aurait
+supprimé l'écart — mais en changeant la sémantique d'une vue que la Section 5 définit **par la
+révocation seule**. Ce serait redéfinir un terme du profil depuis l'extérieur, et probablement casser
+sa conformité.
+
+Nous avons pris l'autre voie : **`isPathActive` garde son sens exact**, et une vue **additive**,
+`isDrawable(rootId, nodeId)`, répond à l'autre question — *ce nœud peut-il tirer maintenant ?* Elle
+rend `true` seulement si le chemin est actif **et** que le mandat adossé à l'agent l'est aussi.
+
+N3b montre les deux côte à côte : mandat gelé, `isPathActive = true` (le chemin n'est pas révoqué,
+c'est exact) et `isDrawable = false` (le tirage échouerait, c'est exact aussi). Après une révocation
+explicite, les deux tombent à `false`. Sur un nœud sans mandat adossé, les deux rendent `true` — le
+comportement de la référence.
+
+Deux vues, deux sens, aucun tordu. Et la vérification qui compte : **ses neuf tests de conformité
+passent toujours après l'ajout**, avec le même gaz, et `type(IAggregateBudget).interfaceId` reste
+`0xc7cabe86` — parce que `isDrawable` vit hors de l'interface. Un ajout additif ne pouvait pas
+casser la conformité *en théorie* ; la sortie le confirme *en pratique*.
 
 ---
 

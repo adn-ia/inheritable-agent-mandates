@@ -303,10 +303,32 @@ contract MandateAwareAggregateCursor is IAggregateBudget {
         return _currentPeriod(_get(rootId));
     }
 
+    /// @notice Sens EXACT de la Section 5 : le chemin jusqu'à la racine est-il non
+    ///         révoqué ? Cette vue ne consulte PAS le mandat — c'est délibéré. Sa
+    ///         sémantique est celle du profil, et la tordre romprait la conformité.
     function isPathActive(bytes32 rootId, uint64 nodeId) external view returns (bool) {
         Root storage r = _get(rootId);
         if (nodeId >= r.nodeCount) revert UnknownNode();
         return _pathActive(rootId, nodeId);
+    }
+
+    /// @notice Ajout ADDITIF, hors de `IAggregateBudget` : « ce nœud peut-il tirer
+    ///         maintenant ? ». Vrai seulement si le chemin est actif ET que le mandat
+    ///         adossé à l'agent du nœud l'est aussi.
+    /// @dev    Répond à l'écart que `isPathActive` seule laisse ouvert : un nœud dont
+    ///         le mandat est gelé garde un chemin non révoqué, mais son `draw` reverte.
+    ///         Cette vue dit ce que la transaction fera ; `isPathActive` dit ce que la
+    ///         Section 5 définit. Les deux gardent leur sens propre.
+    ///
+    ///         Hors interface, donc `type(IAggregateBudget).interfaceId` est inchangé.
+    function isDrawable(bytes32 rootId, uint64 nodeId) external view returns (bool) {
+        Root storage r = _get(rootId);
+        if (nodeId >= r.nodeCount) revert UnknownNode();
+        if (!_pathActive(rootId, nodeId)) return false;
+
+        uint256 agentId = _boundAgentId[_nodes[rootId][nodeId].agent];
+        if (agentId == 0) return true; // adresse non adossée : comportement de la référence
+        return mandate.isActive(agentId);
     }
 
     /// @notice L'identifiant N'EST PAS écrit en dur : il est recalculé depuis la

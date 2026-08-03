@@ -132,6 +132,52 @@ contract Section5Test is Test {
         console2.log("spentRoot rendu apres :", ours.spentRoot(rootId, 0));
     }
 
+    // ----------------------------------------------------------------- N3b
+    function test_N3b_vue_additive() public {
+        console2.log("=== N3b - isPathActive (spec) vs isDrawable (additive) ===");
+        uint256 agentId = mandate.mint(
+            alice,
+            InheritableAgentMandate.Mandate({maxSpendWei: CAP, telomere: 3, requireLease: true, frozen: false}),
+            _payees()
+        );
+        vm.prank(alice);
+        ours.bindAgent(agentId);
+
+        vm.prank(issuer);
+        bytes32 rootId = ours.createRoot(alice, CAP, 0, 0, bytes32("n3b"));
+        vm.prank(alice);
+        uint64 child = ours.delegate(rootId, 0, alice, 0);
+
+        console2.log("avant gel - isPathActive rendu :", ours.isPathActive(rootId, child));
+        console2.log("avant gel - isDrawable   rendu :", ours.isDrawable(rootId, child));
+
+        mandate.freeze(agentId);
+        console2.log("freeze(mandat) execute, sans revoke");
+        console2.log("apres gel - isPathActive rendu :", ours.isPathActive(rootId, child));
+        console2.log("apres gel - isDrawable   rendu :", ours.isDrawable(rootId, child));
+
+        vm.prank(alice);
+        try ours.draw(rootId, child, 1 ether) {
+            console2.log("draw : aboutit");
+        } catch (bytes memory low) {
+            console2.log("draw : reverte -", _reason(low));
+        }
+
+        console2.log("--- apres un revoke explicite, en plus du gel ---");
+        vm.prank(issuer);
+        ours.revoke(rootId, child);
+        console2.log("isPathActive rendu :", ours.isPathActive(rootId, child));
+        console2.log("isDrawable   rendu :", ours.isDrawable(rootId, child));
+
+        console2.log("--- noeud sans mandat adosse (comportement de reference) ---");
+        vm.prank(issuer);
+        bytes32 r2 = ours.createRoot(bob, CAP, 0, 0, bytes32("n3b-libre"));
+        vm.prank(bob);
+        uint64 free = ours.delegate(r2, 0, bob, 0);
+        console2.log("isPathActive rendu :", ours.isPathActive(r2, free));
+        console2.log("isDrawable   rendu :", ours.isDrawable(r2, free));
+    }
+
     // ------------------------------------------------------------------ N4
     function test_N4_contraste() public {
         console2.log("=== N4 - SON cursor non modifie, meme gel (MESURE) ===");
