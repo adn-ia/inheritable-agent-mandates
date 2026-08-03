@@ -22,4 +22,5 @@ remappings = [
   "bounded/=bounded-agent-actions/src/",
   "forge-std/=bounded-agent-actions/lib/forge-std/src/",
   "adn/=../contracts/",
+  "boundedtest/=bounded-agent-actions/test/",
 ]
