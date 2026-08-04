@@ -13,7 +13,8 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | Contrat | Adresse | Code | Documenté dans |
 |---|---|---|---|
 | [`InheritableAgentMandate`](contracts/InheritableAgentMandate.sol) | [`0x2d463db56fadb55cd451d2c3237ec2213ba3bda9`](https://sepolia.basescan.org/address/0x2d463db56fadb55cd451d2c3237ec2213ba3bda9) | 3 148 o | [`DEPLOY.md`](DEPLOY.md) |
-| [`ProvenanceRegistry`](contracts/ProvenanceRegistry.sol) | [`0x202f4eef39b57901061a7353595b72c61eacf5df`](https://sepolia.basescan.org/address/0x202f4eef39b57901061a7353595b72c61eacf5df) | 2 772 o | [`DEMO-PROVENANCE.md`](DEMO-PROVENANCE.md) |
+| [`ProvenanceRegistry`](contracts/ProvenanceRegistry.sol) (v1) | [`0x202f4eef39b57901061a7353595b72c61eacf5df`](https://sepolia.basescan.org/address/0x202f4eef39b57901061a7353595b72c61eacf5df) | 2 772 o | [`DEMO-PROVENANCE.md`](DEMO-PROVENANCE.md) |
+| [`ProvenanceRegistryV2`](contracts/ProvenanceRegistryV2.sol) | [`0xa9d346b71747a424255c0187377276b7b22009e5`](https://sepolia.basescan.org/address/0xa9d346b71747a424255c0187377276b7b22009e5) | 2 924 o | ci-dessous |
 | [`ContestationRegistry`](contracts/ContestationRegistry.sol) | [`0x236b71b033dc93634ce170d51dcd313bda19b233`](https://sepolia.basescan.org/address/0x236b71b033dc93634ce170d51dcd313bda19b233) | 2 800 o | [`TEST-CONTESTATION.md`](TEST-CONTESTATION.md) · [`TEST-CYCLE.md`](TEST-CYCLE.md) |
 | [`StructuredBudget`](contracts/StructuredBudget.sol) | [`0x50fCE593013725BB9ebc837433c4604dCb897f46`](https://sepolia.basescan.org/address/0x50fCE593013725BB9ebc837433c4604dCb897f46) | 4 005 o | [`TEST-BUDGET-STRUCTURE.md`](TEST-BUDGET-STRUCTURE.md) |
 | [`MandateWithException`](contracts/MandateWithException.sol) | [`0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd`](https://sepolia.basescan.org/address/0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd) | 4 445 o | [`TEST-COUTURE-EXCEPTION.md`](TEST-COUTURE-EXCEPTION.md) |
@@ -23,7 +24,91 @@ Une première instance de `MandateWithException` a été déployée à
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
 
-## Les deux derniers déploiements
+## `ProvenanceRegistryV2` — l'instance du namespace « fidélité »
+
+```
+adresse : 0xa9d346b71747a424255c0187377276b7b22009e5
+tx      : 0x1270c4609ad4214e8a0bac4175f43184c9f1fc28ba572a7deaecf32eba4d3426
+bloc    : 45024766        gaz : 679 287
+chainId : 84532
+```
+
+Deux changements par rapport à v1, et deux seulement : le champ **`implementationCommit`** à côté de
+`specCommit`, et l'alias de lecture **`sameHeritageCluster(a, b, maxDepth)`** qui renvoie exactement
+`shareLineage`.
+
+Le cluster est **dérivé**, pas stocké : aucun champ auto-déclaré. Un tag libre aurait permis à deux
+nœuds sans la moindre ascendance d'être rendus « du même cluster » pour le prix d'un mot ; la
+dérivation ne peut pas inventer un lien absent du graphe. En contrepartie, elle ne voit que ce qui a
+été déclaré comme parent, et son verdict dépend de la profondeur demandée.
+
+Le namespace est assuré par **des instances séparées**, pas par un tag de domaine : cette instance-ci
+est celle des interpréteurs. Un tag seul évite les collisions d'identifiants mais n'empêche pas une
+lignée de traverser les domaines — une instance distincte rend ce chemin inexistant plutôt
+qu'interdit.
+
+**v1 reste en place** à `0x202f4eef…f5df`, inchangée et toujours fonctionnelle. v2 ne la remplace
+pas : c'est une instance distincte, pour un usage distinct.
+
+### Exercé on-chain
+
+Petit arbre : `X` et `Y` déclarent chacun un parent qui déclare `A` — leur ancêtre commun est donc à
+**deux générations**. `Z` est enregistré sans parent.
+
+| Nœud | Parents | Transaction |
+|---|---|---|
+| `A` | — | [`0xbbb02600…8ed5d2`](https://sepolia.basescan.org/tx/0xbbb0260087fea64bf9e33e5fb5564d14cdab39529e48a53b1d2d74b2b98ed5d2) |
+| `M` | A | [`0x8a888954…889e84`](https://sepolia.basescan.org/tx/0x8a8889547c5e641365a2115c5c62fdce831b0043b8511eeafefe8614e5889e84) |
+| `N` | A | [`0x1b5a1ff6…6dfc7f`](https://sepolia.basescan.org/tx/0x1b5a1ff6980e82f0bc7d6291287034008ae7618e8d0a0d95d71a9e08726dfc7f) |
+| `X` | M | [`0xc537d7a9…9bf5e4`](https://sepolia.basescan.org/tx/0xc537d7a9fde0164e63d0b8c299e93da8053957bec34f00151becde45769bf5e4) |
+| `Y` | N | [`0xd342e790…97655a`](https://sepolia.basescan.org/tx/0xd342e790834f3a4b01b20c2a277c6ef540a6dde59c828e7e744a577ea097655a) |
+| `Z` | — | [`0x80c6e2ad…e80829`](https://sepolia.basescan.org/tx/0x80c6e2ad60802b675dbadac88857867d613635f60da28f7a4c8d112f59e80829) |
+
+Deux refus, **transactions réelles incluses dans un bloc** — pas des simulations :
+
+| Tentative | Transaction | Issue |
+|---|---|---|
+| Ré-enregistrer `A`, déjà pris | [`0x09e36ec4…de3c1b`](https://sepolia.basescan.org/tx/0x09e36ec47e76f0e0e9ef707f3cc45028be57f9f7c9c9e1710c2db0e35ede3c1b) | **`reverted`** — `programKey already registered` |
+| Déclarer un parent inexistant | [`0x53553d82…76ba6b`](https://sepolia.basescan.org/tx/0x53553d82f555d1f49777501bb0cfa9a3e82e0a83c7c1c6babf7b8c030476ba6b) | **`reverted`** — `unknown parent` |
+
+### Lectures reproductibles
+
+```bash
+C=0xa9d346b71747a424255c0187377276b7b22009e5
+RPC=https://sepolia.base.org
+X=0x1395e57b38581c3a07dd28557757c2e31f7e450b6956cdeebffdec5c87dbb14d
+Y=0xa1e16c0174748792394539dfefb3aac9f4d6674577bdc0ef71270ae348f38378
+Z=0x2c6edb0e7f192004d7f359f8d272d5fc63ce2fa3bdcf6c584097ecd1f9db560f
+
+cast call $C 'recordOf(bytes32)(bytes32,bytes32,address,uint8,bool)' $X --rpc-url $RPC
+cast call $C 'sameHeritageCluster(bytes32,bytes32,uint8)(bool)' $X $Y 1 --rpc-url $RPC
+cast call $C 'sameHeritageCluster(bytes32,bytes32,uint8)(bool)' $X $Y 2 --rpc-url $RPC
+cast call $C 'sameHeritageCluster(bytes32,bytes32,uint8)(bool)' $X $Z 1 --rpc-url $RPC
+cast call $C 'sameHeritageCluster(bytes32,bytes32,uint8)(bool)' $X $Z 2 --rpc-url $RPC
+```
+
+Ce que ces commandes rendent :
+
+```
+recordOf(X)
+   specCommit           0x97b5c17b40398efcba9711dac94bbf13809f3f5d9100a0304a0507edfd8b5ffa
+   implementationCommit 0x190d2f0852079865df9bd6f121569b45090f8bdd9ce65cbd449003b59606a1c9
+   author               0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae
+   reviewMethod         0        exists  true
+
+sameHeritageCluster(X, Y, 1) → false
+sameHeritageCluster(X, Y, 2) → true      ← la famille apparaît à la profondeur de A
+sameHeritageCluster(X, Z, 1) → false
+sameHeritageCluster(X, Z, 2) → false     ← Z ne devient jamais cousin
+```
+
+> **Ce que cet exercice prouve, et ce qu'il ne prouve pas.** La preuve falsifiable est **le fuzz
+> local** — 256 exécutions comparant l'alias à `shareLineage` sur toutes les paires et profondeurs,
+> plus les invariants de v1 rejoués. Cet exercice on-chain sert deux autres choses : la
+> **reproductibilité publique** — n'importe qui peut relancer les `cast call` ci-dessus sans nous
+> faire confiance — et **deux refus constatables** dans des blocs, plutôt qu'affirmés.
+
+## Les deux déploiements précédents
 
 ### `StructuredBudget`
 
