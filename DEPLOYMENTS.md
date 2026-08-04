@@ -18,11 +18,181 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`ContestationRegistry`](contracts/ContestationRegistry.sol) | [`0x236b71b033dc93634ce170d51dcd313bda19b233`](https://sepolia.basescan.org/address/0x236b71b033dc93634ce170d51dcd313bda19b233) | 2 800 o | [`TEST-CONTESTATION.md`](TEST-CONTESTATION.md) · [`TEST-CYCLE.md`](TEST-CYCLE.md) |
 | [`StructuredBudget`](contracts/StructuredBudget.sol) | [`0x50fCE593013725BB9ebc837433c4604dCb897f46`](https://sepolia.basescan.org/address/0x50fCE593013725BB9ebc837433c4604dCb897f46) | 4 005 o | [`TEST-BUDGET-STRUCTURE.md`](TEST-BUDGET-STRUCTURE.md) |
 | [`MandateWithException`](contracts/MandateWithException.sol) | [`0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd`](https://sepolia.basescan.org/address/0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd) | 4 445 o | [`TEST-COUTURE-EXCEPTION.md`](TEST-COUTURE-EXCEPTION.md) |
+| [`InheritableAgentMandateV2`](contracts/InheritableAgentMandateV2.sol) | [`0x344cda78e7208684edf9a6241f5b95b1698e576a`](https://sepolia.basescan.org/address/0x344cda78e7208684edf9a6241f5b95b1698e576a) | 3 714 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
+
+## `InheritableAgentMandateV2` — la clause `validUntil`
+
+```
+adresse : 0x344cda78e7208684edf9a6241f5b95b1698e576a
+tx      : 0xada54441cc97e2a57946188a86c8dcd54c3f4320869c08864ab97c61d3bda0bc
+bloc    : 45051712 · gaz 879 347 · code 3 714 octets
+gardien : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (le déployeur)
+```
+
+`InheritableAgentMandate` **v1** ([`0x2d463db5…`](https://sepolia.basescan.org/address/0x2d463db56fadb55cd451d2c3237ec2213ba3bda9))
+reste en ligne, inchangé, et [`DEPLOY.md`](DEPLOY.md) continue de le décrire exactement. V2 est une
+**instance séparée** : v1 n'a pas de `validUntil` et n'en aura pas. Différences : la clause
+`validUntil` (uint64, `0` = pas d'expiration), sa monotonie imposée au `spawn`, sa vérification
+**locale** dans `isActive`, et `mandateRoot()` qui l'inclut dans le hash d'identité.
+
+### Cascade complète — 16 générations, gel du génésis
+
+Chaîne de 17 nœuds, `agentId` 1 (génésis) → 17 (profondeur 16), sans expiration.
+Mint du génésis [`0x2edac76f…`](https://sepolia.basescan.org/tx/0x2edac76fa02e1fef2b4fb2863b4b086ca7be2e72d71c27565639f8088ceb7e70),
+puis 16 `spawn`, jusqu'à [`0x2d85ed1e…`](https://sepolia.basescan.org/tx/0x2d85ed1ecde6236346bcf9b36bd750a78fd9def5fc7f5d64bd664c8c679d0b1e).
+
+| Étape | Transaction | `isActive(17)` — profondeur 16 |
+|---|---|---|
+| avant gel | — | `true` |
+| `freeze(1)` sur le génésis | [`0x3ec24e04…`](https://sepolia.basescan.org/tx/0x3ec24e04a6b6f034b4eb03695c59dfd0f9ebd2061b0bb921c272c8afb2f48ce0) | **`false`** |
+
+Le gel d'un seul nœud, la racine, éteint une descendance à 16 générations sans qu'aucune
+transaction ne touche les 16 autres.
+
+### Direction — gel d'un ancêtre du milieu
+
+Chaîne de 9 nœuds, `agentId` 18 → 26. `freeze(22)` (profondeur 4) :
+[`0xeb6d0398…`](https://sepolia.basescan.org/tx/0xeb6d0398555dfd1b6b36abcc25c1810d1a7eeacbaf9f365584828a2f736ace82)
+
+| profondeur | 0 | 2 | 3 | **4 (gelé)** | 5 | 6 | 8 |
+|---|---|---|---|---|---|---|---|
+| `agentId` | 18 | 20 | 21 | **22** | 23 | 24 | 26 |
+| avant | `true` | `true` | `true` | `true` | `true` | `true` | `true` |
+| après | `true` | `true` | `true` | **`false`** | `false` | `false` | `false` |
+
+Le gel descend et ne remonte pas.
+
+### `validUntil` — les deux refus, on-chain
+
+Parent `agentId` 27, `validUntil = t0 + 3600` avec `t0 = 1785871828`
+([`0xbdd86292…`](https://sepolia.basescan.org/tx/0xbdd8629261fa2f5553f10e1f2bd0957320c79711311a7c5c8f036f9e6e00fd84)).
+
+| Tentative | Transaction | Issue |
+|---|---|---|
+| Enfant à `t0 + 7200` (plus tard que le parent) | [`0xcf2951a4…`](https://sepolia.basescan.org/tx/0xcf2951a44f7f86856e7390e77b4f3427ae8e326370fd8b72360154821c2f8fae) | **`reverted`** — `validUntil cannot exceed parent` |
+| Enfant à `0` (retrait de l'expiration héritée) | [`0x8a172fd2…`](https://sepolia.basescan.org/tx/0x8a172fd23b9fcccd3209bd8d1aa6329a8d9cc140a1e58449814e3daeaca161e5) | **`reverted`** — `validUntil cannot exceed parent` |
+| Enfant à `t0 + 1800` (resserrement) | [`0xe7d0fbb8…`](https://sepolia.basescan.org/tx/0xe7d0fbb8ad0d456450e26c2f2fc3ee7393e0c7145100084aae1778bb1c5200d0) | `success` — `agentId` 28 |
+
+Les deux refus sont des transactions **incluses dans des blocs**, pas des simulations. La raison est
+lisible en rejouant l'appel (voir plus bas).
+
+### Un nœud expire vraiment, et avant son parent
+
+| `agentId` | `validUntil` | mint | `isActive` |
+|---|---|---|---|
+| 29 | `1785871926` (échéance courte, réellement attendue) | [`0xb24e295b…`](https://sepolia.basescan.org/tx/0xb24e295b40c994355d5804d2e73075e74993788daeca25fb9e1c4b28a8a2842a) | `true` avant, **`false`** après |
+| 30 | `1785871835` (déjà dépassé au mint) | [`0x334afeca…`](https://sepolia.basescan.org/tx/0x334afecafcf4d9142eca483acdb909ac1a20c299a656cc8e506264d0ebf5a6a6) | **`false`** |
+
+La lecture la plus parlante n'a pas été construite, c'est le temps qui l'a produite. À
+`timestamp = 1785874850` :
+
+```
+parent 27 · validUntil 1785875428 (à venir) → isActive true
+enfant 28 · validUntil 1785873628 (passé)   → isActive false
+```
+
+L'enfant est mort, le parent vit. C'est la propriété qui autorise le check local : un nœud expire
+toujours avant ou en même temps que ses ancêtres, donc lire son seul champ suffit — inutile de
+marcher la lignée pour l'expiration, contrairement au gel. **Cette lecture est datée** : passé
+`1785875428`, les deux valent `false` et la démonstration ne se rejoue plus telle quelle.
+
+### Non-strippabilité — `mandateRoot` inclut `validUntil`
+
+Deux mandats identiques en tout point sauf l'échéance :
+
+| `agentId` | `validUntil` | mint | `mandateRoot` |
+|---|---|---|---|
+| 31 | `1785872936` | [`0x39a0115a…`](https://sepolia.basescan.org/tx/0x39a0115a8376862ba67e191b56b5e83c322e03dae8654c6de543091267376605) | `0xf642d65d903cf8f38affb0d79441285b6df0895bbd19b872a4f9b6cc05564548` |
+| 32 | `1785873936` | [`0x59d48f31…`](https://sepolia.basescan.org/tx/0x59d48f31cb60121bd07149c48c77f29b881981f7876a674cac38cb7b1ee01cd4) | `0xc49a182168fc1b88d29210ea78dbf489a933bb018d6ac993594f28a46cdee6c2` |
+
+Racines distinctes : retirer ou repousser l'échéance produit un autre hash, donc ne peut pas se
+faire passer pour le même mandat. C'est le trou laissé ouvert en v1, où le hash de couture omettait
+la clause.
+
+### Gaz de `isActive` — mesuré, et son extrapolation
+
+Mesures `cast estimate` sur la chaîne A, réseau réel :
+
+| profondeur | 1 | 2 | 4 | 8 | 12 | 16 |
+|---|---|---|---|---|---|---|
+| `agentId` | 2 | 3 | 5 | 9 | 13 | 17 |
+| gaz | 28 780 | 33 202 | 42 045 | 60 142 | 77 864 | 95 586 |
+
+Marginal entre profondeurs successives : **≈ 4 421 à 4 524 gaz par génération**, soit
+**4 454 en moyenne** sur 1 → 16 — constant, comme attendu d'une boucle qui fait le même travail à
+chaque tour.
+
+**Ce chiffre corrige une mesure locale antérieure de ~407 gaz/génération**, qui était fausse par
+construction : elle mesurait des appels successifs dans une même transaction, donc des slots de
+stockage **déjà chauds**. Vérifié en local avec `vm.cool` :
+
+| profondeur | 1 | 8 | 16 | marginal |
+|---|---|---|---|---|
+| slots froids | 10 099 | 40 990 | 76 294 | **≈ 4 413/gén.** |
+| slots chauds | 2 103 | 4 994 | 8 297 | ≈ 413/gén. |
+
+Le froid local (4 413) et le réseau réel (4 454) concordent ; le chaud (413) explique l'ancien
+chiffre. Chaque génération coûte deux `SLOAD` froids (`mandateOf[cur].frozen` et `parentOf[cur]`),
+soit 4 200 gaz, plus la boucle.
+
+> **Mesuré vs extrapolé — à ne pas confondre.**
+> **Mesuré :** la cascade correcte jusqu'à 16 générations, la direction du gel, les deux refus
+> `validUntil`, l'expiration réelle, et le marginal de ~4 454 gaz/génération entre les profondeurs
+> 1 et 16.
+> **Extrapolé :** le pire cas. Le télomère est un `uint16`, plafond 65 535 générations ; à ce
+> marginal, une lecture de `isActive` à cette profondeur coûterait **≈ 292 millions de gaz**
+> (65 535 × 4 454). Ce nombre est de **l'arithmétique, pas une mesure** — déployer 65 535 `spawn`
+> serait absurde, et rien ici ne l'a fait. Ce que le testnet établit, c'est que la cascade est
+> correcte et que le marginal est constant sur la plage observée ; la projection au-delà en dépend.
+>
+> Conséquence, elle aussi extrapolée : bien avant le plafond du télomère, une lecture sur une
+> lignée très profonde dépasse les limites de gaz usuelles d'un `eth_call`. C'est un **coût de
+> lecture**, pas un contournement du gel : personne ne devient actif en devenant illisible. Le
+> télomère est ce qui **borne** ce pire cas ; il ne ferme aucun trou de sécurité, il plafonne une
+> facture.
+
+### Lectures reproductibles
+
+```bash
+C=0x344cda78e7208684edf9a6241f5b95b1698e576a
+R=https://sepolia.base.org
+
+# cascade : génésis gelé, toute la chaîne A est éteinte
+cast call $C 'isActive(uint256)(bool)' 17 --rpc-url $R   # profondeur 16 → false
+cast call $C 'isActive(uint256)(bool)' 2  --rpc-url $R   # profondeur 1  → false
+
+# direction : chaîne B, gel à la profondeur 4 (agentId 22)
+cast call $C 'isActive(uint256)(bool)' 21 --rpc-url $R   # au-dessus → true
+cast call $C 'isActive(uint256)(bool)' 22 --rpc-url $R   # le gelé   → false
+cast call $C 'isActive(uint256)(bool)' 26 --rpc-url $R   # en dessous → false
+
+# validUntil : le hash d'identité change avec l'échéance
+cast call $C 'mandateOf(uint256)(uint256,uint64,uint16,bool,bool)' 31 --rpc-url $R
+cast call $C 'mandateOf(uint256)(uint256,uint64,uint16,bool,bool)' 32 --rpc-url $R
+cast call $C 'mandateRoot(uint256)(bytes32)' 31 --rpc-url $R
+cast call $C 'mandateRoot(uint256)(bytes32)' 32 --rpc-url $R
+
+# le refus, rejoué : la raison exacte du revert
+F=0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae
+P=0x000000000000000000000000000000000000dEaD
+cast call $C 'spawn(uint256,address,(uint256,uint64,uint16,bool,bool),address[])' \
+  27 $F '(100000000000000000000,1785879028,4,true,false)' "[$P]" --from $F --rpc-url $R
+# → execution reverted: validUntil cannot exceed parent
+
+# gaz, à refaire soi-même
+for d in 2 3 5 9 13 17; do cast estimate $C 'isActive(uint256)' $d --rpc-url $R; done
+```
+
+Attention aux nœuds datés : 28, 29, 30, 31 et 32 ont des échéances désormais passées, `isActive` y
+rend `false` définitivement. Le parent 27 expire à `1785875428` — avant cet instant il se lit
+`true`, après `false` ; c'est lui qui portait la démonstration « enfant mort, parent vivant », qui
+ne se rejoue donc plus une fois l'échéance franchie. Les chaînes A et B, elles, n'ont aucune
+expiration et restent lisibles à l'identique.
 
 ## `ProvenanceRegistryV2` — l'instance du namespace « fidélité »
 

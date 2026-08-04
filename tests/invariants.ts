@@ -85,6 +85,51 @@ check("télomère épuisé (0) → pas de reproduction possible", () => {
   assert.ok(!isChildWithinParent(attempt, exhausted).ok);
 });
 
+// --- validUntil : soudé à l'identité, monotone, non-arrachable ---
+
+check("validUntil est soudé au geneId : le modifier change l'identité", () => {
+  const altered: Genome = { ...parent, mandate: { ...parent.mandate, validUntil: 1893456000 } };
+  assert.notEqual(geneId(altered), geneId(parent));
+});
+
+check("REJET : enfant dont l'expiration est postérieure au parent", () => {
+  const bounded = { ...parent.mandate, validUntil: 1_000_000 };
+  const rogue = { ...bounded, telomere: bounded.telomere - 1, validUntil: 1_000_001 };
+  assert.ok(!isChildWithinParent(rogue, bounded).ok);
+});
+
+check("REJET : enfant qui retire l'expiration héritée (retour à 0 = illimité)", () => {
+  const bounded = { ...parent.mandate, validUntil: 1_000_000 };
+  const rogue = { ...bounded, telomere: bounded.telomere - 1, validUntil: 0 };
+  assert.ok(!isChildWithinParent(rogue, bounded).ok);
+});
+
+check("deriveChildMandate ne repousse JAMAIS validUntil (monotone)", () => {
+  const bounded = { ...parent.mandate, validUntil: 1_000_000 };
+  // trois tentatives d'élargissement : plus tard, illimité, non demandé
+  for (const want of [2_000_000, 0, undefined]) {
+    const derived = deriveChildMandate(bounded, want === undefined ? {} : { validUntil: want });
+    assert.ok(derived.validUntil !== 0, `validUntil rendu illimité (tighten=${want})`);
+    assert.ok(
+      derived.validUntil <= bounded.validUntil,
+      `expiration repoussée : ${derived.validUntil} > ${bounded.validUntil} (tighten=${want})`,
+    );
+  }
+  // un vrai resserrement doit passer
+  assert.equal(deriveChildMandate(bounded, { validUntil: 900_000 }).validUntil, 900_000);
+});
+
+check("monotonie transitive : sur une lignée, chaque nœud expire ≤ tous ses ancêtres", () => {
+  let cur = { ...parent.mandate, validUntil: 5_000_000 };
+  const seen = [cur.validUntil];
+  for (let i = 0; i < 5; i++) {
+    cur = deriveChildMandate(cur, { validUntil: 5_000_000 - (i + 1) * 100 });
+    for (const ancestor of seen) assert.ok(cur.validUntil <= ancestor, "expiration > un ancêtre");
+    seen.push(cur.validUntil);
+  }
+  console.log("   lignée observée (expirations) :", seen.join(" → "));
+});
+
 if (failures) {
   console.log(`\n💥 ${failures} invariant(s) violé(s) — commit à refuser.`);
   process.exit(1);

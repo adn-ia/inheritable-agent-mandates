@@ -35,6 +35,7 @@ export const genome: Genome = {
     maxSpendWei: "10000000000000000", // = 0.01 ETH
     allowedPayees: [],
     requireLease: true,
+    validUntil: 0, // 0 = pas d'expiration ; toute valeur non nulle se transmet en se resserrant
   },
   policy: {
     summaryMaxSentences: 2,
