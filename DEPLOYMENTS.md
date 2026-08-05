@@ -19,11 +19,125 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`StructuredBudget`](contracts/StructuredBudget.sol) | [`0x50fCE593013725BB9ebc837433c4604dCb897f46`](https://sepolia.basescan.org/address/0x50fCE593013725BB9ebc837433c4604dCb897f46) | 4 005 o | [`TEST-BUDGET-STRUCTURE.md`](TEST-BUDGET-STRUCTURE.md) |
 | [`MandateWithException`](contracts/MandateWithException.sol) | [`0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd`](https://sepolia.basescan.org/address/0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd) | 4 445 o | [`TEST-COUTURE-EXCEPTION.md`](TEST-COUTURE-EXCEPTION.md) |
 | [`InheritableAgentMandateV2`](contracts/InheritableAgentMandateV2.sol) | [`0x344cda78e7208684edf9a6241f5b95b1698e576a`](https://sepolia.basescan.org/address/0x344cda78e7208684edf9a6241f5b95b1698e576a) | 3 714 o | ci-dessous |
+| [`MandateGate`](contracts/MandateGate.sol) | [`0x6882d039e266e5357d82cf3c7215b7639f5c24ea`](https://sepolia.basescan.org/address/0x6882d039e266e5357d82cf3c7215b7639f5c24ea) | 5 870 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
+
+## `MandateGate` — démonstrateur d'exécution
+
+> **Démonstrateur `MandateGate`, non audité, ne détient aucun fonds.** Autorité du verdict
+> en **ECDSA / EIP-191**. Gardien **unique** (une EOA, pas un multisig). Interopérabilité
+> cross-auteur **non incluse** — c'est l'étape suivante.
+
+```
+adresse  : 0x6882d039e266e5357d82cf3c7215b7639f5c24ea
+tx       : 0xe8a5f72b996fe6a41d604cfadaa0f92879a4d44ab3f061306592cee4745c4a08
+bloc     : 45094935 · gaz 1 322 817 · code 5 870 octets
+gardien  : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (EOA unique — voir ci-dessous)
+mandat lu: 0x2d463db56fadb55cd451d2c3237ec2213ba3bda9 (InheritableAgentMandate v1)
+émetteur : 0x3855B75B2E0a0ea46c134f7A37c8eB05d9aD9547 (clé jetable, autorisée par le gardien)
+```
+
+Le gate **lit** le contrat de référence v1 et ne lui écrit rien : la démonstration réutilise
+des agents qui y existaient déjà (`2` = racine, `3` = son enfant). **Aucune transaction n'a
+été envoyée vers v1**, dont l'empreinte source reste `773b7f55…70b66`.
+
+### Vérification du source
+
+| Vérificateur | État | Lien |
+|---|---|---|
+| **Sourcify** | **`exact_match`** — bytecode de création **et** d'exécution | [`sourcify.dev/server/v2/contract/84532/0x6882…24EA`](https://sourcify.dev/server/v2/contract/84532/0x6882D039e266e5357d82Cf3C7215b7639F5c24EA) |
+| BaseScan | **non vérifié** | — |
+
+BaseScan n'est pas vérifié faute de clé API Etherscan v2 : aucune n'est présente dans
+l'environnement, et l'API refuse (`Missing/Invalid API Key`). Ce n'est pas un obstacle
+technique, seulement une clé à fournir — la vérification Sourcify, elle, est publique et
+suffit à confirmer que le source de ce dépôt produit bien le bytecode déployé.
+
+Détail utile à qui reproduit : le contrat a été compilé par `scripts/compile.ts` avec
+**solc 0.8.36**, optimiseur activé, 200 runs — pas avec le `solc 0.8.24` du projet Foundry.
+Une première tentative de vérification via forge a échoué (`bytecode_length_mismatch`)
+précisément pour cette raison.
+
+### Preuve live — une transaction par propriété
+
+| Propriété | Transaction | Issue |
+|---|---|---|
+| Verdict lié + signé + émetteur autorisé | [`0xeefc059f…`](https://sepolia.basescan.org/tx/0xeefc059f966deec04793e4fe12b9f9d61ebcf2297d056b776a5335b4e7606b06) | `success` |
+| Verdict forgé, **sans signature** | [`0xf5945822…`](https://sepolia.basescan.org/tx/0xf5945822e791583df125de3f050cd17ea9475aae80bd16636dfb9cba46692589) | **`reverted`** — `verdict signature invalid` |
+| **Self-report** (l'agent se signe lui-même) | [`0x5b8b0879…`](https://sepolia.basescan.org/tx/0x5b8b08796b3bad3e3f7ee4df923b0aacbebec72e21d0f7106b2d8468963973a5) | **`reverted`** — `issuer not authorized` |
+| Reclamation exacte au vrai parent | [`0x8ff1dbb1…`](https://sepolia.basescan.org/tx/0x8ff1dbb1a08d202500edc7ed1a7f3af6bc385e3eafd35c7d1376c0e770a4774e) | `success` |
+| **Sur-retour** (un wei de trop) | [`0x1792d1cf…`](https://sepolia.basescan.org/tx/0x1792d1cf720cdcdf4727adf70d0750b90d1daaaa9a2889102ed729bd57beeb90) | **`reverted`** — `over-return` |
+
+Mise en place : [`setIssuer`](https://sepolia.basescan.org/tx/0xe5e73c923d64c2b3e05487208ea9337c8d64b78eb026ba196afb0b8bf6e6db78)
+et [`credit`](https://sepolia.basescan.org/tx/0x010fac120243bb6901cadb9468277c61051856b93e6eefe027fa728260128614)
+(0,001 unité interne à l'agent 3). Les trois refus sont des transactions **incluses dans des
+blocs**, pas des simulations.
+
+Le cas du self-report est celui qui porte : le contrat récupère bien
+`0x448Cc1c5…` comme signataire, c'est-à-dire exactement l'adresse déclarée — **la signature
+est valide**. Le refus tombe sur l'autorité, pas sur la signature. Un acteur ne peut pas
+juger sa propre action, même en signant correctement.
+
+### Le livre se ferme
+
+```
+received(3)   = 1000000000000000   (0,001)
+spent(3)      =  400000000000000   (0,0004)
+returnedTo(3) =  600000000000000   (0,0006)
+room(3)       = 0
+bookClosed(3) = true
+received(2)   =  600000000000000   ← le parent réel a bien été crédité
+```
+
+### Lectures reproductibles
+
+```bash
+G=0x6882d039e266e5357d82cf3c7215b7639f5c24ea
+R=https://sepolia.base.org
+P=0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae   # propriétaire de l'agent 2 (le vrai parent)
+
+# le livre de comptes de l'agent 3
+cast call $G 'received(uint256)(uint256)'   3 --rpc-url $R
+cast call $G 'spent(uint256)(uint256)'      3 --rpc-url $R
+cast call $G 'returnedTo(uint256)(uint256)' 3 --rpc-url $R
+cast call $G 'bookClosed(uint256)(bool)'    3 --rpc-url $R   # → true
+
+# plafond effectif = minimum sur la lignée (agent 3 sous agent 2)
+cast call $G 'effectiveCap(uint256)(uint256)' 3 --rpc-url $R  # → 4000000000000000
+
+# qui est reconnu comme émetteur ?
+cast call $G 'authorizedIssuers(address)(bool)' 0x3855B75B2E0a0ea46c134f7A37c8eB05d9aD9547 --rpc-url $R  # → true
+cast call $G 'authorizedIssuers(address)(bool)' $P --rpc-url $R                                          # → false
+
+# les deux refus de reclamation, rejoués
+cast call $G 'reclaim(uint256,address,uint256)' 3 $P 1 --from $P --rpc-url $R
+# → execution reverted: over-return
+cast call $G 'reclaim(uint256,address,uint256)' 3 0x000000000000000000000000000000000000dEaD 0 --from $P --rpc-url $R
+# → execution reverted: not the real parent
+
+# le contrat de référence n'a pas bougé : il n'a reçu aucune transaction de ce banc
+cast call 0x2d463db56fadb55cd451d2c3237ec2213ba3bda9 'isActive(uint256)(bool)' 3 --rpc-url $R  # → true
+```
+
+### Ce que cette démonstration établit, et ce qu'elle n'établit pas
+
+**Établi on-chain** : le lien action↔verdict, l'exigence de signature, l'exigence d'autorité
+(un self-report correctement signé est refusé), et la conservation de la reclamation — en
+transactions réelles, vérifiables par n'importe qui.
+
+**Non établi** : l'autorité n'a été exercée que par un émetteur que **j'ai moi-même créé et
+autorisé**. Le vrai test est cross-auteur — présenter à ce gate un verdict réellement signé
+par le serveur d'un tiers. Il reste à faire. De plus, le digest est de l'**EIP-191**, pas de
+l'**EIP-712** typé : un émetteur tiers signera probablement du 712, et les octets signés
+diffèrent — l'interopérabilité demandera un alignement. Enfin, `authorizedIssuers` est une
+allowlist plate, sans quorum ni seuil N-sur-M, et le gardien est une **EOA unique** détenue
+par l'auteur du dépôt : en production ce devrait être un multisig.
+
+La batterie complète (19 cas) tourne en local — voir `integration/test/MandateGate.t.sol`.
 
 ## `InheritableAgentMandateV2` — la clause `validUntil`
 
