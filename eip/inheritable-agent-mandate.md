@@ -1,14 +1,14 @@
 ---
-eip: <TBD>
+eip: 8367
 title: Inheritable Agent Mandates
-description: Control mandates bound to an agent's on-chain identity that are non-strippably inherited by spawned child agents.
-author: Helmy Mekaoui <helmymekaoui@gmail.com>
-discussions-to: https://ethereum-magicians.org/  # create a thread and paste the URL here
+description: Spending and lifecycle limits welded to an agent's on-chain identity that every spawned child inherits and can only tighten.
+author: Helmi Mekaoui (@adn-ia)
+discussions-to: https://ethereum-magicians.org/t/inheritable-agent-mandates-a-non-strippable-inherited-leash-for-on-chain-agents/29275
 status: Draft
 type: Standards Track
 category: ERC
-created: 2026-07-21
-requires: 721, 8004, 8226
+created: 2026-08-04
+requires: 165, 721, 8004
 ---
 
 ## Abstract
