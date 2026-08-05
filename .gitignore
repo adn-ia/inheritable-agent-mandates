@@ -19,6 +19,15 @@ publication/PUBLIER-le-repo.md
 publication/
 notes/
 
+# dossier de travail interne : protocoles, rapports de banc, brouillons
+_local/
+
+# documents personnels — jamais dans un dépôt public
+*.pdf
+# …sauf les explications grand public, qui sont publiées volontairement
+# (liées depuis le README ; sans cette ligne, un futur PDF y serait bloqué en silence)
+!vulgarise/*.pdf
+
 # artefacts de compilation / déploiement
 build/
 
