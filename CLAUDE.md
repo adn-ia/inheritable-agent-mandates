@@ -13,7 +13,11 @@ diff et la sortie des tests.
 
 ## Règles dures
 
-1. **Testnet uniquement.** Jamais de clé détenant de l'argent réel, jamais de mainnet.
+1. **Preuve avant fonds — local → testnet → mainnet.** Toute logique est prouvée en local
+   puis sur testnet (fonds de test, gratuits) avant tout contact avec de l'argent réel. Un
+   déploiement de référence sans fonds sur mainnet est autorisé (étiqueté « référence, non
+   auditée »). Un test avec de vrais fonds n'est autorisé qu'après cette preuve
+   local+testnet du scénario exact, en montants minimes, toujours signé par moi.
 2. **Ne jamais lire, écrire ni committer `.env` ou une clé privée.** (déjà gitignorés)
 3. **Les invariants d'héritage sont sacrés** et vérifiés par `tests/invariants.ts` — ils
    DOIVENT rester verts :
