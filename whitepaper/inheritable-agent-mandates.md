@@ -18,7 +18,8 @@ AI agents are starting to hold money on-chain and to **spawn copies of themselve
 work done in parallel. The guardrails we have today all share one blind spot: they're attached
 to a *single* account. Spend limits, session keys, policy engines — each one leashes one agent.
 None of them follows that agent's *children*. So the moment an agent spawns a copy, its limits
-are gone: it can escape its own leash simply by being born again, unbound.
+are gone — the child is born unbound. Not because those tools fail at what they set out to do, but
+because none of them sets out to define what a child inherits.
 
 What I'm proposing is a leash that the children inherit. Concretely: a small **mandate** — a
 spending allowance, an expiry, a reproduction allowance, a required "still alive?" check, an

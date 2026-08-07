@@ -45,8 +45,10 @@ parallelise work. The controls that exist today are all applied *per instance* a
 The consequence is a structural gap. Most of these controls do not travel to a spawned child at all;
 the one that does — ERC-8312's delegation-budget profile — carries an aggregate *spend* cap across
 the tree, but not the rest of the mandate. So a compromised, misaligned or simply buggy agent can
-still escape most of its constraints by *reproduction* — spawning a child that inherits, at best, a
-spend ceiling, while its payees, expiry, freeze and generation bound are not carried over. Multi-agent
+find most of its constraints absent from its offspring — a spawned child inherits, at best, a
+spend ceiling, while its payees, expiry, freeze and generation bound are not carried over. This is a
+gap between standards, not a defect in any of them: none of these specifications defines mandate
+inheritance, and none claims to. Multi-agent
 research has documented that spawned sub-agents inherit capabilities and memory without isolation, so
 a local compromise propagates across agent boundaries.
 

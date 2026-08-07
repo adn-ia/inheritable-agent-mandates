@@ -65,6 +65,11 @@ au mieux deux :
 | custodian-kernel | ❌ | ✅ | ✅ (off-chain) |
 | **ADN-IA (ce repo)** | ✅ | ✅ | ✅ (mandat entier) |
 
+*Les croix marquent ce qu'un standard **ne définit pas**, pas ce qu'il ferait mal. ERC-8226
+(Regulated Agent Mandate) est délibérément agnostique quant à l'identité et ne dit rien des agents
+enfants : l'héritage de mandat est hors de son périmètre déclaré, pas une lacune de sa part. Il en
+va de même des autres lignes.*
+
 ERC-8312 transporte bien quelque chose jusqu'à l'enfant — un plafond de dépense agrégé sur l'arbre
 de délégation. Ce qui reste non couvert est le **reste** du mandat : payees, expiry, gel en cascade,
 compteur de génération, soudés à l'identité. C'est la revendication resserrée du white paper.
