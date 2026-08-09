@@ -341,6 +341,8 @@ contract MandateGateV2 {
     /// exacte — `[0,pubkey,created_at,kind,tags,content]` — telle qu'elle a été signée.
     /// Les offsets évitent au contrat de fouiller la préimage : il vérifie que les
     /// champs sont bien là où on le dit. Un offset mensonger fait échouer la comparaison.
+    /// `offVerdict` désigne la séquence `\"verdict\":\"approve\"` : un verdict qui
+    /// refuse ne doit pas exécuter l'action, quelle que soit la qualité de sa signature.
     struct SchnorrVerdict {
         bytes preimage;
         uint256 issuerKey;
@@ -348,6 +350,7 @@ contract MandateGateV2 {
         uint256 sigS;
         uint256 offArtifact;
         uint256 offVerifier;
+        uint256 offVerdict;
     }
 
     function setIssuerKey(uint256 issuerKey, bool allowed) external onlyGuardian {
@@ -423,6 +426,14 @@ contract MandateGateV2 {
             "schnorr signature invalid"
         );
         require(authorizedIssuerKeys[m.issuerKey], "issuer key not authorized");
+        // Symetrique de `require(v.approve, ...)` du chemin ECDSA. Sans lui, un verdict
+        // parfaitement signe et lie mais portant "reject" executerait quand meme l'action.
+        // La sequence recherchee est celle qui apparait dans la preimage NIP-01, ou le
+        // contenu est un JSON imbrique : les guillemets y sont echappes.
+        require(
+            _at(m.preimage, m.offVerdict, "\\\"verdict\\\":\\\"approve\\\""),
+            "verdict does not approve"
+        );
         require(!usedCommitment[c], "commitment already used");
 
         require(mandate.isActive(a.agentId), "agent not active");
