@@ -20,11 +20,77 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateWithException`](contracts/MandateWithException.sol) | [`0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd`](https://sepolia.basescan.org/address/0x8ce2a6c8c5d97c6fe71d2d07bae3a9e816a032bd) | 4 445 o | [`TEST-COUTURE-EXCEPTION.md`](TEST-COUTURE-EXCEPTION.md) |
 | [`InheritableAgentMandateV2`](contracts/InheritableAgentMandateV2.sol) | [`0x344cda78e7208684edf9a6241f5b95b1698e576a`](https://sepolia.basescan.org/address/0x344cda78e7208684edf9a6241f5b95b1698e576a) | 3 714 o | ci-dessous |
 | [`MandateGate`](contracts/MandateGate.sol) | [`0x6882d039e266e5357d82cf3c7215b7639f5c24ea`](https://sepolia.basescan.org/address/0x6882d039e266e5357d82cf3c7215b7639f5c24ea) | 5 870 o | ci-dessous |
+| [`MandateGateV2`](contracts/MandateGateV2.sol) | [`0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8`](https://sepolia.basescan.org/address/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8) | 10 324 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
+
+## `MandateGateV2` — porte additive schnorr (Base Sepolia)
+
+> **Démonstrateur non audité, ne détient aucun fonds.** Testnet uniquement. Le chemin
+> ECDSA/EIP-191 est repris à l'identique du `MandateGate` ci-dessous ; le schnorr est une
+> **seconde entrée**, pas une modification de la première.
+
+```
+adresse  : 0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8
+tx       : 0x2014eea8ac9b203cb9231b09552ce5202edcef4d910133ae0a4f5e51969a42ed
+bloc     : 45251181 · gaz 2 284 951 · code 10 324 octets
+gardien  : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (EOA de test)
+mandat lu: 0x2D463dB56FadB55cd451d2C3237EC2213bA3BdA9 (le même que MandateGate)
+source   : commit 9d1a9ee de `main`
+expectedVerifierTag() = eip155:84532:0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8
+```
+
+`expectedVerifierTag()` est **reconstruit par le contrat** à partir de `block.chainid` et
+`address(this)` — jamais accepté de l'appelant. Un verdict tiers doit porter cette chaîne
+exacte dans son `intended_verifier`, sans quoi il est rejeté : c'est la séparation de
+domaine, portée par le contenu signé puisque le format NIP-01 ne la prévoit pas au niveau
+du digest.
+
+### Vérification du source
+
+| Vérificateur | État | Lien |
+|---|---|---|
+| **Sourcify** | **`exact_match`** — création **et** exécution | [`sourcify.dev/server/v2/contract/84532/0xa211…efa8`](https://sourcify.dev/server/v2/contract/84532/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8) |
+| BaseScan Sepolia | non vérifié | — (pas de clé API Etherscan v2 dans l'environnement) |
+
+### Émetteurs autorisés
+
+| Transaction | Clé (x-only) |
+|---|---|
+| [`0x4b933ea3…10be`](https://sepolia.basescan.org/tx/0x4b933ea3fec2628957cf8032d8479753f97c4388be4d1627156fbac43fcd10be) | `6786e18a864893a900bd9858e650f67ccc3513f248fed374b591e2ff6922fbb7` — babyblueviper1 / invinoveritas |
+| [`0xc2d28a30…97b0`](https://sepolia.basescan.org/tx/0xc2d28a309792bb7999fd3726594e675110e16a5840010d8cd41b93f029c497b0) | clé de test déterministe, pour la démonstration ci-dessous |
+
+L'allowlist est réglable **par le gardien seul** : un agent ne peut pas s'y inscrire.
+
+### Le correctif « verdict does not approve », prouvé à cette adresse
+
+Deux verdicts réellement signés en schnorr, liés à la **même action**, adressés au **même
+gate**, émis par la **même clé**. Seul le mot diffère.
+
+| Verdict | Transaction | Issue |
+|---|---|---|
+| `reject` | [`0xee73ffa0…6329`](https://sepolia.basescan.org/tx/0xee73ffa099b7258b7fba6a628e9bfa7c1542675dca0906b6521deaf7f9106329) | **`reverted`** — `verdict does not approve` |
+| `approve` | [`0x4c88a8cd…66ac`](https://sepolia.basescan.org/tx/0x4c88a8cdb952dccd0f6d20cce633c2e1d4d6b52f035a5229c9a405b3e1a466ac) | `success` |
+
+```
+commit(action) = 0x70c83a986274d24156e1d00675536136e1d599d2c276d050802cb87329bd96b6
+spent(3) après les deux transactions = 100000000000000   ← seul l'approve a dépensé
+```
+
+Le refus est une transaction **incluse dans un bloc**, pas une simulation. La signature du
+`reject` est valide, sa liaison à l'action est bonne, son destinataire est ce gate, son
+émetteur est autorisé — et il est refusé quand même, parce qu'il refuse.
+
+### Instance dépréciée
+
+[`0xfb63fa3af614d435a7b0c0009e2c477209708604`](https://sepolia.basescan.org/address/0xfb63fa3af614d435a7b0c0009e2c477209708604)
+— **DÉPRÉCIÉE, ne pas citer.** Déployée avant le correctif : son `executeSchnorr` vérifie
+la liaison, le destinataire, la signature et l'autorité, puis **exécute sans lire la
+décision**. Un verdict `reject` y aurait dépensé. Sa `SchnorrVerdict` a 6 champs au lieu
+de 7 (`offVerdict` absent), donc son ABI diffère de celle de `main`.
 
 ## `MandateGate` — démonstrateur d'exécution
 
