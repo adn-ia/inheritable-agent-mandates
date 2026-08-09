@@ -1,8 +1,8 @@
 # Inheritable Agent Mandates
 ### A non-strippable, identity-anchored leash for autonomous on-chain AI agents
 
-**Author:** Helmy Mekaoui · **Version:** 0.6 (draft) · **Date:** 2026-07-28
-**Companion artifacts:** a reference contract (`InheritableAgentMandate.sol`), a working prototype (M0/M1/M3), and a draft EIP, "Inheritable Agent Mandates."
+**Author:** Helmy Mekaoui · **Version:** 0.7 (draft) · **Date:** 2026-08-09
+**Companion artifacts:** a reference contract (`InheritableAgentMandate`) **now deployed and exercised on Base mainnet** (Sourcify `exact_match`), a working prototype (M0/M1/M3), an on-chain schnorr-verifying gate independently cross-checked with a third party, and the draft standard **ERC-8370, "Inheritable Agent Mandates."**
 
 > A note before we start. This is a working draft, written by one person, and I've tried to
 > keep it honest rather than impressive. It says what the idea is, what I've actually built,
@@ -213,8 +213,20 @@ poison it, or freeze its spending. And the inheritance itself (M3): the mandate 
 When you run it, a child is born inheriting the parent's restrictions, and **escape attempts get
 refused** — a child that tries to switch off its lease, or to widen a restriction, bounces. Those
 refusals are checked by plain machine tests that run *outside* any AI model, and they gate the
-whole thing. A small on-chain reference contract, `InheritableAgentMandate.sol`, enforces the
+whole thing. A small on-chain reference contract, `InheritableAgentMandate`, enforces the
 inheritance directly and does the cascading freeze; it's unaudited, there to show the shape.
+
+**Since v0.6 that reference contract is live on Base mainnet** (`0x1C905e…De48`, Sourcify
+`exact_match`), and I ran the whole lifecycle in the open rather than describing it: a genesis
+mandate minted through a **multisig guardian** — a Safe, not a personal hot key — then three
+inheriting spawns, then a cascading freeze, six reproducible transactions anyone can replay from
+the block explorer. The freeze is the result I care about most. **It cost 63,239 gas to switch off
+a four-deep lineage, and it would be the same number for four thousand.** The children's stored
+`frozen` flag is never touched; `isActive` walks the `parentOf` chain and stops at the frozen root.
+That's the difference between a revocation that has to *write into* every descendant — cost
+proportional to the tree, impractical at scale — and one that is *read* up the lineage in constant
+cost. I read the before/after `isActive` of every agent at two block heights to confirm it, rather
+than trusting the transaction that did it.
 
 **What it doesn't yet do, in the spirit of §7.** The control substrate and the agent still run in the
 *same* process; a real deployment needs them genuinely separated — a trusted external runtime, or
@@ -233,6 +245,20 @@ The **economic** layer (funding limits, embargo) is often the strongest lever, b
 agent needs neither its cooperation nor its ignorance. The **verification** layer is an external,
 machine-checked gate that refuses anything non-conforming — and the catch I learned the hard way:
 *the checker has to be checked too.* A guardrail you never watched fail is just another promise.
+
+Since v0.6 I stopped only asserting that and tested it against someone who isn't me. The author of
+a neighbouring standard (ERC-8354) issued a real, signed verdict addressed to my gate; a verifier I
+had written separately — no shared code — recomputed its identity, checked its signature, and
+reproduced the same tamper matrix, rejecting a forged signature, a shifted timestamp, an altered
+byte and a swapped key, each for its own reason. Then I took the check on-chain: a gate verifies
+that third party's BIP-340 schnorr signature directly in the EVM, passing all nineteen official test
+vectors — so *the checker has now been checked* by an independent party, on a public chain, not just
+by me. Wiring that gate also caught a real defect in my own code: the schnorr path verified the
+signature but never read the verdict's approve/reject decision, so a *reject* would have executed the
+action. It's fixed, with a test that submits two genuinely-signed verdicts over the same action where
+only the word differs — the reject reverts, only the approve spends. I'd rather report the hole I
+found in myself than have a customer find it.
+
 The **human** layer is a guardian (ideally proof-of-personhood, not one hot key) where the very
 act that grants life — renewing the lease — is the same act that can withhold it. And the
 **model** layer — actual alignment of the AI's behaviour — the chain can't touch at all.
@@ -290,8 +316,9 @@ feature by a big wallet platform tomorrow.
 
 ## 8. The standard
 
-The mechanism is written up as a draft EIP, "Inheritable Agent Mandates" (Standards Track, building
-on ERC-721/8004/8226/7710). It specifies the mandate, the `spawn` that enforces `child ⊆ parent` on
+The mechanism is written up as a draft standard, **ERC-8370, "Inheritable Agent Mandates"**
+(Standards Track, building on ERC-721/8004/8226/7710), under open review on the Ethereum Magicians
+forum. It specifies the mandate, the `spawn` that enforces `child ⊆ parent` on
 every clause (cap, expiry, lease, payees) and decrements the generation counter, the cascading
 freeze, and the soulbound identity binding. It is built to **compose
 with** ERC-8004 (identity), ERC-8001 (the agent mandate it inherits), ERC-8312 (Bounded Agent
