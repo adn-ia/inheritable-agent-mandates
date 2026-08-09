@@ -21,11 +21,70 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`InheritableAgentMandateV2`](contracts/InheritableAgentMandateV2.sol) | [`0x344cda78e7208684edf9a6241f5b95b1698e576a`](https://sepolia.basescan.org/address/0x344cda78e7208684edf9a6241f5b95b1698e576a) | 3 714 o | ci-dessous |
 | [`MandateGate`](contracts/MandateGate.sol) | [`0x6882d039e266e5357d82cf3c7215b7639f5c24ea`](https://sepolia.basescan.org/address/0x6882d039e266e5357d82cf3c7215b7639f5c24ea) | 5 870 o | ci-dessous |
 | [`MandateGateV2`](contracts/MandateGateV2.sol) | [`0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8`](https://sepolia.basescan.org/address/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8) | 10 324 o | ci-dessous |
+| [`MandateGateV3`](contracts/MandateGateV3.sol) | [`0x34a9ab58756b9a0579d9d156292412bbed87cbe8`](https://sepolia.basescan.org/address/0x34a9ab58756b9a0579d9d156292412bbed87cbe8) | 11 865 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
+
+## `MandateGateV3` — époque d'émission et timelock (Base Sepolia)
+
+> **Contrat de référence, non audité, ne détient aucun fonds.** Testnet uniquement.
+
+```
+adresse    : 0x34a9ab58756b9a0579d9d156292412bbed87cbe8
+tx         : 0xbc997e31e71ec6f350a372320fb8aed332a5ee35b9102ff35a8fc6c43b3c7fa1
+bloc       : 45274351 · gaz 2 617 451 · code 11 865 octets
+gardien    : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (EOA de test)
+mandat lu  : 0x2D463dB56FadB55cd451d2C3237EC2213bA3BdA9
+MAX_WINDOW : 604 800 s (7 jours)   ·   TIMELOCK : 172 800 s (2 jours)
+expectedVerifierTag() = eip155:84532:0x34a9ab58756b9a0579d9d156292412bbed87cbe8
+```
+
+**Sourcify : `exact_match`**, création et exécution —
+[`sourcify.dev/server/v2/contract/84532/0x34a9…cbe8`](https://sourcify.dev/server/v2/contract/84532/0x34a9ab58756b9a0579d9d156292412bbed87cbe8)
+
+### Ce que V3 ajoute à V2
+
+**Époque d'émission.** Le contrat écrit lui-même `issuerEpoch[k] = block.timestamp` au
+moment où il reconnaît une clé. Un verdict doit s'y lier — l'époque figure dans la
+préimage signée sous la forme `"issuer_epoch":<décimal>` — et sa validité est plafonnée
+à `epoch + MAX_WINDOW`. La différence avec une échéance choisie par l'émetteur : celle-ci
+ne plafonne rien, puisqu'il peut la fixer à dix ans.
+
+**Timelock asymétrique.** Autoriser passe par `proposeIssuerKey` puis, après le délai,
+`confirmIssuerKey`. Révoquer est **immédiat**, et annule aussi toute proposition en cours
+— sinon un gardien compromis pourrait proposer, se faire couper, puis confirmer plus tard.
+`refreshIssuerEpoch` ré-horodate sans délai une clé **déjà** autorisée : cette opération ne
+peut qu'invalider en masse les verdicts de l'époque précédente, jamais accorder un pouvoir.
+
+`setIssuerKey` de V2 est **supprimé** : le laisser aurait offert une porte contournant le
+timelock.
+
+### Tests (locaux, `integration/test/MandateGateV3.t.sol`)
+
+Le temps se manipule avec `vm.warp` — ni l'expiration ni le timelock ne sont observables
+autrement. Verdicts réellement signés en schnorr.
+
+| cas | résultat |
+|---|---|
+| dans la fenêtre | aboutit |
+| à `epoch + MAX_WINDOW` pile | aboutit encore |
+| à `epoch + MAX_WINDOW + 1 s` | `verdict expired` |
+| après `refreshIssuerEpoch` | `stale issuer epoch` |
+| préimage portant une autre époque | `epoch not bound to verdict` |
+| `confirm` avant le délai | `timelock not elapsed` |
+| `revoke` puis `confirm` après le délai | `not proposed` |
+| `refreshIssuerEpoch` sur clé non autorisée | `issuer key not authorized` |
+
+### État de V2
+
+Les trois clés d'émetteur de [`0xa211fd59…efa8`](https://sepolia.basescan.org/address/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8)
+ont été révoquées ([`0x5c2225b5…bf17`](https://sepolia.basescan.org/tx/0x5c2225b5465bd4b94b2459da1a09142e6b13bfae454f9d0bf0fcdd7e8d4cbf17)
+pour la dernière). Aucun verdict schnorr n'y est donc exerçable — non parce qu'il n'en
+existe pas, mais parce qu'aucun émetteur n'y est plus reconnu. V2 reste en ligne et
+documenté ci-dessous ; il ne doit plus servir de cible.
 
 ## `MandateGateV2` — porte additive schnorr (Base Sepolia)
 
