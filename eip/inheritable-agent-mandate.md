@@ -169,8 +169,14 @@ identity used with this ERC:
   "telomerase") except minting a fresh root agent, which is guardian-gated.
 - **Cascading freeze** gives a single, identity-scoped kill that stops a whole lineage at
   once, rather than requiring each descendant to be found and stopped individually.
-- **Soulbound identity** closes the transfer-stripping hole: control clauses that travel with
-  a transferable token can be shed by moving the token.
+- **Soulbound identity** closes the transfer hole. Measured against the deployed ERC-8004
+  Identity Registry rather than assumed: transferring an agent clears only the reserved
+  `agentWallet` key; arbitrary metadata — including a mandate written there — survives the
+  transfer intact. The risk is therefore not that the clauses are shed, but that they persist
+  while becoming rewritable by whoever now holds the token: the new owner reset a spend cap
+  from 1000 to 999,999,999 and a generation counter from 3 to 255, in one call, with no
+  refusal. A leash whose setting is controlled by the holder is not a leash. Non-transferability
+  plus the absence of any post-hoc mutation is what makes the clauses binding.
 - **On-chain enforcement** (vs. off-chain policy) makes the constraints verifiable and
   portable across wallets and agent frameworks, which is the property no single wallet-vendor
   policy engine provides.
