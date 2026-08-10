@@ -22,11 +22,73 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateGate`](contracts/MandateGate.sol) | [`0x6882d039e266e5357d82cf3c7215b7639f5c24ea`](https://sepolia.basescan.org/address/0x6882d039e266e5357d82cf3c7215b7639f5c24ea) | 5 870 o | ci-dessous |
 | [`MandateGateV2`](contracts/MandateGateV2.sol) | [`0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8`](https://sepolia.basescan.org/address/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8) | 10 324 o | ci-dessous |
 | [`MandateGateV3`](contracts/MandateGateV3.sol) | [`0x34a9ab58756b9a0579d9d156292412bbed87cbe8`](https://sepolia.basescan.org/address/0x34a9ab58756b9a0579d9d156292412bbed87cbe8) | 11 865 o | ci-dessous |
+| [`InheritableAgentMandateV3`](contracts/InheritableAgentMandateV3.sol) | [`0xfd786e6dda41faea07c45948114d497b0f39f32b`](https://sepolia.basescan.org/address/0xfd786e6dda41faea07c45948114d497b0f39f32b) | 3 961 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
 **remplacée** par l'instance ci-dessus et ne doit pas être citée.
+
+## `InheritableAgentMandateV3` — invariant de conservation (Base Sepolia)
+
+> **Contrat de référence, non audité, ne détient aucun fonds.** Testnet uniquement.
+
+```
+adresse : 0xfd786e6dda41faea07c45948114d497b0f39f32b
+tx      : 0xe83d4f4bd21b5e57ab05dec19ab2b3f0b64c0c9bcb2fe1d7d152ceece50c0382
+bloc    : 45313484 · gaz 932 773 · code 3 961 octets
+gardien : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (EOA de test)
+```
+
+**Sourcify : `exact_match`**, création et exécution —
+[`sourcify.dev/server/v2/contract/84532/0xfd78…f32b`](https://sourcify.dev/server/v2/contract/84532/0xfd786e6dda41faea07c45948114d497b0f39f32b)
+
+### Ce que V3 ajoute à V2
+
+`enfant ⊆ parent` seul laissait passer une évasion par **fan-out** : dix enfants à 100 % du
+plafond parent chacun font 1000 %, sans qu'aucun ne viole la règle pris isolément. Le contrat
+comptabilise désormais ce qu'un parent a distribué (`allocatedOf`) et refuse au-delà du reste.
+L'ancienne garde en est subsumée — sans rien d'alloué, le reste vaut le plafond du parent.
+
+### Exercé on-chain
+
+| Étape | Transaction | Issue |
+|---|---|---|
+| `mint` racine, plafond 500 | [`0x029fd0e1…9616`](https://sepolia.basescan.org/tx/0x029fd0e19d2dfb2b4c951fbb4436679fd22c47524daf5fc36a050f31baf09616) | `success` — agent 1 |
+| `spawn` enfant à 500 (consomme tout) | [`0x0c026717…d8a9`](https://sepolia.basescan.org/tx/0x0c026717ca576e30725305e39fe082cacc8e544846b5f1a6b12d0fbaa117d8a9) | `success` — agent 2 |
+| `spawn` 2ᵉ enfant, **1 wei** | [`0xb49fbc3e…0871`](https://sepolia.basescan.org/tx/0xb49fbc3eb8b9adedffecdd5653d3216a65b5622019d0d1a4a4d700ec8b080871) | **`status 0`** — `conservation: exceeds parent unallocated budget` |
+
+Le refus est une transaction **incluse dans un bloc**, pas une simulation. Et il porte sur
+**1 wei** : ce n'est pas « ça refuse gros », c'est « ça refuse au wei près ».
+
+### Lectures reproductibles
+
+```bash
+C=0xfd786e6dda41faea07c45948114d497b0f39f32b
+R=https://base-sepolia-rpc.publicnode.com
+
+cast call $C 'allocatedOf(uint256)(uint256)'     1 --rpc-url $R   # → 500
+cast call $C 'availableBudget(uint256)(uint256)' 1 --rpc-url $R   # → 0
+cast call $C 'parentOf(uint256)(uint256)'        2 --rpc-url $R   # → 1
+
+# le fan-out, rejoué en lecture seule
+cast call $C 'spawn(uint256,address,(uint256,uint64,uint16,bool,bool),address[])' \
+  1 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae '(1,0,7,false,false)' \
+  '[0x000000000000000000000000000000000000dEaD]' \
+  --from 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae --rpc-url $R
+# → execution reverted: conservation: exceeds parent unallocated budget
+```
+
+### La limite, mesurée et non masquée
+
+L'invariant borne ce qu'un parent **distribue**, pas ce que l'arbre **consomme**. Un parent
+qui a tout alloué garde son plafond propre intact. Démontré par la dépense réelle à travers
+`MandateGateV3` — deux exécutions, verdicts ECDSA signés, `spent[]` relu : racine 500 +
+enfant 500 = **1000 dépensés** pour un plafond de racine de 500. Voir
+`integration/test/ConservationPair.t.sol`.
+
+Seconde face : le gardien peut minter des racines sans plafond global. La conservation vaut
+**par lignée**, pas pour l'émission.
 
 ## `MandateGateV3` — époque d'émission et timelock (Base Sepolia)
 
