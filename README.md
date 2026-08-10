@@ -57,6 +57,41 @@ cast call $C 'isActive(uint256)(bool)' 4 --block 49692606 --rpc-url $R   # → t
 
 Une seule transaction a gelé l'agent 1. Les agents 2, 3 et 4 n'ont jamais été touchés.
 
+## Et vérifie le verdict d'un tiers, sans nous faire confiance
+
+Le mandat dit ce qu'un agent a le droit de faire ; un **verdict signé** autorise une action
+précise. Encore faut-il pouvoir le vérifier sans demander la permission à celui qui l'émet.
+
+Voici un verdict réel, signé par un tiers — [babyblueviper1](https://ethereum-magicians.org/t/29275),
+auteur d'un standard voisin. Aucune installation, aucune dépendance, aucun appel à son
+service de vérification :
+
+```bash
+curl -sO https://raw.githubusercontent.com/adn-ia/inheritable-agent-mandates/main/conformance/verify_verdict.py
+curl -sO https://raw.githubusercontent.com/bitcoin/bips/master/bip-0340/test-vectors.csv
+
+# 1. d'abord, vérifie le vérificateur — contre les vecteurs officiels BIP-340
+python3 verify_verdict.py --self-test test-vectors.csv
+#   → vecteurs BIP-340 officiels : 19/19 conformes, 0 divergence(s)
+
+# 2. puis vérifie un vrai verdict tiers
+curl -s https://api.babyblueviper.com/ledger/238 | python3 verify_verdict.py -
+#   → (a) id NIP-01        : OK
+#   → (b) schnorr BIP-340  : OK
+
+# 3. et falsifie-le : un seul mot change
+curl -s https://api.babyblueviper.com/ledger/238 | sed 's/reject/accept/' | python3 verify_verdict.py -
+#   → (a) id NIP-01        : KO
+#   → (b) schnorr BIP-340  : KO      (code de sortie 1)
+```
+
+L'étape 1 compte autant que la 2 : un outil qui dirait « OK » à tout ne prouverait rien. Les
+19 vecteurs comptent **9 signatures valides et 10 invalides** — il doit accepter les unes *et*
+rejeter les autres.
+
+155 lignes de Python, sans dépendance, [lisibles ici](conformance/verify_verdict.py). Le code
+de sortie est `0` ou `1` : utilisable tel quel dans une CI.
+
 ## Ce que ça ne fait pas
 
 - **Ça ne contraint que les agents dont les actions passent par un compte conforme.** Un
