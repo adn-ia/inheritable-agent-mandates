@@ -1,19 +1,74 @@
-# 🧬 ADN-IA — containment **héritable** pour agent on-chain (M0 + M1 + M3)
+# 🧬 ADN-IA — quand un agent se copie, ses limites ne le suivent pas
 
-> **Inheritable Agent Mandates** — control clauses bound to an agent's on-chain identity,
-> non-strippably inherited by spawned children (`child ⊆ parent`). Testnet only (Base Sepolia).
-> Canonical write-up: [`whitepaper/inheritable-agent-mandates.md`](whitepaper/inheritable-agent-mandates.md) ·
-> draft standard: [`eip/inheritable-agent-mandate.md`](eip/inheritable-agent-mandate.md).
+Un agent autonome qui détient de l'argent on-chain peut **se reproduire**. Les garde-fous
+d'aujourd'hui — clés de session, plafonds par portefeuille, moteurs de politique — sont
+attachés à **un seul compte**. Aucun ne suit les enfants de ce compte.
 
-On associe une chaîne crypto à une IA, **la chaîne étant l'ADN** : le code immuable qui
-définit et prouve son identité (`geneId`). Un runtime le lit et le rend vivant ; un
-métabolisme le nourrit ou le laisse mourir ; un humain garde la clé qui le maintient en vie.
+Voici à quoi ça ressemble, mesuré sur un contrat sans l'invariant :
 
-Et surtout — c'est la partie que la recherche a trouvée **non construite** à la mi-2026 —
-les **clauses de contrôle sont inscrites dans l'identité** et **héritées par l'enfant au
-spawn**, sans pouvoir être élargies ni arrachées. C'est la « 3ᵉ patte ».
+```
+parent : plafond 500
+  enfant 1 à 500 → accepté
+  enfant 2 à 500 → accepté
+  enfant 3 à 500 → accepté
+  → 1500 distribués depuis un plafond de 500
+```
 
-Tout est en **testnet (Base Sepolia)**. Aucun argent réel.
+Avec dix enfants à 250, c'est **2500 pour un plafond de 500** — cinq fois la limite, sans
+qu'aucune règle ne soit violée au sens strict : chaque enfant, pris seul, reste « sous le
+parent ». C'est l'évasion par **fan-out**.
+
+Ce dépôt referme ça, et le prouve plutôt que de l'affirmer. Sur le contrat corrigé, le
+deuxième enfant est refusé — **y compris à 1 wei** :
+
+```
+conservation: exceeds parent unallocated budget
+```
+
+## Le résultat qui tient en un chiffre
+
+**63 239 gaz pour éteindre une lignée de quatre générations. Le même chiffre pour quatre
+mille.**
+
+Geler la racine suffit : les descendants gardent leur drapeau `frozen` à `false` et
+deviennent inactifs parce que la lecture remonte la lignée. C'est la différence entre une
+révocation qui doit *écrire* dans chaque enfant — coût proportionnel, impraticable — et une
+qui se *lit* en remontant, à coût constant.
+
+## Vérifie-le toi-même en 60 secondes
+
+Contrat de référence déployé sur **Base mainnet**, source vérifiée (Sourcify `exact_match`).
+Une lignée de quatre agents y est figée, racine gelée. Rien à installer, rien à cloner :
+
+```bash
+C=0x1C905e7E37690Aea82Ed95F74acDfDce7542De48
+R=https://mainnet.base.org
+
+# la racine a été gelée — le plus profond est-il éteint ?
+cast call $C 'isActive(uint256)(bool)' 4 --rpc-url $R          # → false
+
+# et pourtant son propre drapeau n'a jamais été touché
+cast call $C 'mandateOf(uint256)(uint256,uint64,uint16,bool,bool)' 4 --rpc-url $R
+#   → dernière valeur : false   (frozen = false)
+
+# avant le gel, au bloc précédent : il était vivant
+cast call $C 'isActive(uint256)(bool)' 4 --block 49692606 --rpc-url $R   # → true
+```
+
+Une seule transaction a gelé l'agent 1. Les agents 2, 3 et 4 n'ont jamais été touchés.
+
+## Ce que ça ne fait pas
+
+- **Ça ne contraint que les agents dont les actions passent par un compte conforme.** Un
+  agent capable de se redéployer ailleurs n'est pas contenu.
+- **L'invariant borne ce qu'un parent distribue, pas ce que l'arbre consomme.** Un parent qui
+  a tout alloué garde son propre plafond : racine 500 + enfant 500 = **1000 dépensés** pour un
+  plafond de racine de 500. Mesuré, pas supposé.
+- **Non audité.** Le contrat de référence sur mainnet ne détient aucun fonds ; tout le reste
+  tourne sur Base Sepolia.
+
+Le mécanisme est spécifié comme brouillon de standard **ERC-8370**, en revue ouverte sur
+Ethereum Magicians.
 
 ---
 
