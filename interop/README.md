@@ -1,8 +1,19 @@
-# Interop — composer ERC-8370 avec ERC-8004
+# Interop — ERC-8370 confronté aux standards voisins
 
-Ce dossier contient une mesure, pas une démonstration. Le script s'exécute contre les
-registres **ERC-8004 réellement déployés** sur Base Sepolia — pas un fork, pas un mock,
-pas un contrat à nous.
+Ce dossier contient des **mesures**, pas des démonstrations. Chaque script s'exécute contre
+du code réellement déployé sur Base Sepolia — pas un fork, pas un mock. Règle du dossier :
+rien n'est affirmé publiquement qui ne soit d'abord passé par une transaction.
+
+| # | exercice | contre quoi | ce qu'on a trouvé |
+|---|---|---|---|
+| 1 | [composition ERC-8004](#la-question) | registres ERC-8004 déployés | la réputation survit à la vente de l'identité |
+| 2 | [le scénario du clone](#le-scénario-du-clone--ce-quun-nullifieur-ne-voit-pas) | brouillon *Unclonable Credentials* | un clone partage le budget, il ne le multiplie pas |
+
+---
+
+# 1 · Composer ERC-8370 avec ERC-8004
+
+Le script s'exécute contre les registres **ERC-8004 réellement déployés** sur Base Sepolia.
 
 | registre | adresse |
 |---|---|
@@ -126,3 +137,55 @@ mesure dit l'inverse : les clauses survivent. La justification était fausse, la
 tenait pour une autre raison — la réécriture. La phrase a été corrigée dans
 `eip/inheritable-agent-mandate.md` (commit `2d070f6`) avant toute publication de ces
 résultats, et aucun contrat n'a été modifié.
+
+---
+
+# 2 · Le scénario du clone — ce qu'un nullifieur ne voit pas
+
+`node interop/clone-vs-identity-cap.mjs`
+
+Second exercice d'interopérabilité, contre un fil différent : *[IDEA/DRAFT] ERC —
+Unclonable Agent Execution Credentials via Zero Knowledge Nullifiers*. Ce brouillon rend un
+credential d'agent à usage unique via un nullifieur en connaissance nulle. Après discussion
+dans le fil, sa garantie est énoncée précisément comme **« at most once, with no ordering »** :
+un clone qui a copié la mémoire de l'agent gagne la course par construction, parce qu'il
+n'attend pas la boucle de raisonnement de l'agent.
+
+La question que cela laisse ouverte, et que ce script mesure : **le clone a gagné quoi ?**
+
+## Le run de référence — agent 3, `MandateGateV3` Base Sepolia
+
+| | montant | nonce | commitment | résultat |
+|---|---|---|---|---|
+| agent légitime | 4 000 000 000 000 000 wei | 1001 | `0x7e5dc801…9e71` | [`success`](https://sepolia.basescan.org/tx/0xb2c08b18ee6c1ea65ce4442b74e2004cb7d1577b07140dd5405fd4304bf6ede8) |
+| clone | 1 wei | 1002 | `0xc10d1c6b…fc57` | [`reverted`](https://sepolia.basescan.org/tx/0x0261afb21216b7307ab496a110433370d32086fbbb43e8bc67676ee98c4ebc3d) — `over effective cap` |
+
+**Rien n'a été rejoué.** Le clone présente une action différente, un salt différent, un
+commitment différent, un verdict signé à neuf et un nonce inutilisé. Un registre de
+nullifieurs aurait vu deux consommations parfaitement légitimes et accepté les deux.
+
+Il n'obtient rien quand même, parce que la borne est soudée à l'identité et non au credential :
+
+```solidity
+require(spent[agentId] + amount <= effectiveCap(agentId), "over effective cap");
+```
+
+`effectiveCap` est le minimum le long de la lignée, et `spent` cumule sur toutes les
+exécutions quel que soit le nombre de credentials émis. **N clones du même agent partagent un
+seul budget** — l'inverse de l'intuition qu'invitent les systèmes à credentials, où N
+credentials se lisent naturellement comme N budgets.
+
+## La limite, dite d'emblée
+
+Cela borne **une identité**, pas la consommation agrégée d'une lignée : un parent et son
+enfant, chacun sous son propre plafond, peuvent ensemble dépasser celui du parent — mesuré et
+consigné dans `DEPLOYMENTS.md`. Pour un clone qui engendre à son tour, la réponse est le gel
+en cascade, pas le plafond.
+
+## Rejouer
+
+Le script exige que `PRIVATE_KEY` soit le gardien du gate (il appelle `setIssuer` et lit le
+crédit) et refuse toute chaîne autre que Base Sepolia. Le plafond de l'agent 3 étant désormais
+consommé, le script le détecte et s'arrête plutôt que de rejouer un scénario vide : pour
+recommencer, engendrer un agent neuf, le créditer, puis relancer. Un tiers rejoue contre son
+propre déploiement, ou lit simplement les deux transactions ci-dessus.
