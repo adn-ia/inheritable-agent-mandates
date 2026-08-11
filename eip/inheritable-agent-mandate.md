@@ -212,6 +212,22 @@ accompanies this proposal. It is unaudited and intended for illustration.
   latency.
 - **Payee revocation.** With a `payeesRoot`, revoking a payee requires updating the root;
   implementations SHOULD emit an event on root changes.
+- **Unbounded population.** Nothing bounds the *number* of descendants: a parent with no
+  unallocated budget left can still spawn arbitrarily many zero-budget children, and each is
+  inert (`effectiveMaxSpendWei` takes the lineage minimum, so a zero cap dominates). Where the
+  deployment partitions the budget at spawn (see *Aggregate spend* above), this is harmless — no
+  view is O(width), so the spawner merely pays gas for empty shells. Without that partitioning,
+  unbounded width is the vector *Aggregate spend* describes, and the population bound is doing
+  work the budget bound is not. It stops being harmless in either case the moment anything grants
+  value *per agent*: deployments layering airdrops, reputation weight, quotas, or rate limits on top
+  of agent identity reintroduce a Sybil vector this ERC does not cover, and SHOULD bound
+  population explicitly.
+- **No custody.** This ERC authorizes; it does not hold funds. The registry has no payable
+  entry point and never takes possession of value, so expiry cannot strand a balance and
+  deactivation leaves no orphaned funds. Implementers who add a custody layer inherit the
+  question this ERC avoids: an expired or frozen agent MUST be able to *unwind* — settle
+  outstanding obligations and return residual value up its lineage — and not merely lose the
+  ability to act, or expiry becomes a way to lock value permanently.
 - **Reentrancy / gas.** `spawn` writes state after all checks; ancestor-walking views
   (`isActive`, `effectiveMaxSpendWei`) are O(depth) and callers SHOULD bound lineage depth.
 
