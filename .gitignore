@@ -28,6 +28,9 @@ _local/
 # (liées depuis le README ; sans cette ligne, un futur PDF y serait bloqué en silence)
 !vulgarise/*.pdf
 
+# rendus page par page du PDF déjà suivi : dérivés, rien d'original à versionner
+vulgarise/Une-IA-en-laisse_FR_p*.png
+
 # artefacts de compilation / déploiement
 build/
 
@@ -35,3 +38,6 @@ build/
 integration/bounded-agent-actions/
 integration/out/
 integration/cache/
+
+# caches Python
+__pycache__/
