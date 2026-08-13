@@ -41,3 +41,7 @@ integration/cache/
 
 # caches Python
 __pycache__/
+
+# mesure de frontière contre l'implémentation de référence ERC-8226 :
+# gardée en réserve (décision du 13/08/2026), pas publiée
+interop/erc8226-frontiere/
