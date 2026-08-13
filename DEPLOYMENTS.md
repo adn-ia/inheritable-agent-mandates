@@ -48,6 +48,39 @@ gardien : 0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae (EOA de test)
 `enfant ⊆ parent` seul laissait passer une évasion par **fan-out** : dix enfants à 100 % du
 plafond parent chacun font 1000 %, sans qu'aucun ne viole la règle pris isolément. Le contrat
 comptabilise désormais ce qu'un parent a distribué (`allocatedOf`) et refuse au-delà du reste.
+
+### Ce que V3 NE fait pas — portée exacte, mesurée le 14/08/2026
+
+La source déployée est figée : elle est vérifiée Sourcify en `exact_match`, et la corriger
+changerait son empreinte. Les limites ci-dessous sont donc **documentées ici**, pas dans le
+contrat. Elles viennent d'un audit adversarial par quatre modèles indépendants, vérifié par
+exécution — détail dans `0 Memoire/ADN-IA/audit-quatre-ia-2026-08-14.md`.
+
+**La conservation borne la largeur, pas la profondeur.** `allocatedOf` est débité du **parent
+immédiat seulement**. Un enfant déjà débité de son parent démarre avec son propre compteur à
+zéro, donc une chaîne de D générations réémettant chacune son plafond atteint D fois celui de
+la racine. Mesuré : racine à 100, télomère 3 → lignée à **300**. Le fan-out est fermé
+horizontalement ; la profondeur le rouvre. Les *Security Considerations* de l'ERC ont été
+précisées en conséquence.
+
+**`requireLease` est inerte.** L'ERC spécifie `renew(agentId, validUntil)` et un `isActive`
+qui consulte le bail. V3 **n'implémente pas `renew`** — l'expiration est à un coup, jamais
+renouvelable — et son `isActive` applique `validUntil` à tout le monde sans jamais lire
+`requireLease`. Le champ est stocké, hérité, non-arrachable, et sans effet à l'exécution.
+
+**`isActive` renvoie `true` pour une identité inexistante.** Vérifié en lecture seule :
+`isActive(0)` et `isActive(999)` valent `true`. Un mandat par défaut est non gelé, sans
+expiration, et la marche d'ancêtres s'arrête aussitôt. Non exploitable via `MandateGateV3`,
+où `payeeAllowed`, `effectiveCap` et `room` valent tous zéro pour un tel identifiant — mais
+**`isActive` ne doit pas être utilisé seul comme test d'existence**.
+
+**`mandateRoot` n'atteste pas la vivacité.** Il ne hache que le struct `Mandate` : ni
+`allocatedOf`, ni la allowlist, ni l'état des ancêtres. `freeze(P)` ne change pas
+`mandateRoot(C)`.
+
+**`spawn` ne vérifie pas la vivacité du parent** — seulement `!frozen` sur le parent immédiat.
+Un parent expiré, ou sous un ancêtre gelé, continue d'engendrer ; les descendants sont inertes
+mais consomment identités et allocation.
 L'ancienne garde en est subsumée — sans rien d'alloué, le reste vaut le plafond du parent.
 
 ### Exercé on-chain

@@ -206,7 +206,12 @@ accompanies this proposal. It is unaudited and intended for illustration.
 - **Aggregate spend.** `effectiveMaxSpendWei` bounds each agent (the minimum cap along its lineage),
   not the *sum* across many siblings: N children each under the cap can together exceed the root's.
   Deployments that need an aggregate bound SHOULD partition the budget at spawn (debiting the parent)
-  rather than only enforcing a per-child ceiling.
+  rather than only enforcing a per-child ceiling. **Debiting the immediate parent alone is not
+  sufficient**: it bounds breadth, not depth. A child that has been debited from its parent still
+  begins with its own allocation counter at zero, so a chain of D generations each re-issuing its
+  full cap reaches D times the root's ceiling — depth substitutes for width. An aggregate bound
+  therefore requires debiting *every ancestor* along the lineage at spawn, or an equivalent
+  lineage-wide accounting; a per-parent counter alone does not provide one.
 - **Liveness griefing.** A guardian that stops renewing deactivates a subtree by design
   (dead-man's switch). Implementers SHOULD choose `validUntil` windows that tolerate renewal
   latency.
@@ -228,6 +233,22 @@ accompanies this proposal. It is unaudited and intended for illustration.
   question this ERC avoids: an expired or frozen agent MUST be able to *unwind* — settle
   outstanding obligations and return residual value up its lineage — and not merely lose the
   ability to act, or expiry becomes a way to lock value permanently.
+- **Unknown agent ids.** A registry backed by mappings returns a zero-valued `Mandate` for an id
+  that was never minted: `frozen` is false, `validUntil` is zero, and the ancestor walk terminates
+  immediately. A naive `isActive` therefore reports an agent that does not exist as **active**, and
+  a capability root can be computed for it. Implementations MUST reject unknown ids in `isActive`
+  and in any root-deriving view, and integrators MUST NOT treat `isActive` as an existence check.
+- **A capability root is not a liveness attestation.** A root derived from an agent's own clauses
+  does not change when an ancestor is frozen, when the agent's unallocated budget reaches zero, or
+  when a payee is removed — none of that is part of the agent's own `Mandate`. Consumers that pin a
+  root (for example an ERC-8312 envelope) MUST re-read `isActive` and the effective cap at use time
+  rather than treating the root as a standing authorization.
+- **Spawning is not gated on liveness.** `spawn` checks that the parent is unfrozen, but an
+  implementation that does not also check the parent's expiry — or the freeze state of its
+  ancestors — lets a dead lineage keep growing. The descendants are inert (`isActive` walks up), so
+  nothing becomes spendable, but identities and any partitioned budget are consumed irreversibly
+  where the allocation counter never decreases. Implementations SHOULD require `isActive(parentId)`
+  in `spawn`, and MUST NOT allow a child to be created with a `validUntil` already in the past.
 - **Reentrancy / gas.** `spawn` writes state after all checks; ancestor-walking views
   (`isActive`, `effectiveMaxSpendWei`) are O(depth) and callers SHOULD bound lineage depth.
 
