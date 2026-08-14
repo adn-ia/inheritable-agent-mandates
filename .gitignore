@@ -45,3 +45,8 @@ __pycache__/
 # mesure de frontière contre l'implémentation de référence ERC-8226 :
 # gardée en réserve (décision du 13/08/2026), pas publiée
 interop/erc8226-frontiere/
+
+# V4 du mandat : version écrite le 14/08 avec un renew() libre, écartée par Helmy
+# le jour même (elle relâche une clause). À réécrire avec le plafond de naissance
+# et les périodes fixes, après les réponses du fil. NE PAS DÉPLOYER TELLE QUELLE.
+contracts/InheritableAgentMandateV4.sol

@@ -23,6 +23,7 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateGateV2`](contracts/MandateGateV2.sol) | [`0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8`](https://sepolia.basescan.org/address/0xa211fd59fc964e70ffb70d27c2f2f6a982d0efa8) | 10 324 o | ci-dessous |
 | [`MandateGateV3`](contracts/MandateGateV3.sol) | [`0x34a9ab58756b9a0579d9d156292412bbed87cbe8`](https://sepolia.basescan.org/address/0x34a9ab58756b9a0579d9d156292412bbed87cbe8) | 11 865 o | ci-dessous |
 | [`InheritableAgentMandateV3`](contracts/InheritableAgentMandateV3.sol) | [`0xfd786e6dda41faea07c45948114d497b0f39f32b`](https://sepolia.basescan.org/address/0xfd786e6dda41faea07c45948114d497b0f39f32b) | 3 961 o | ci-dessous |
+| [`MandateAwareAggregateCursor`](contracts/MandateAwareAggregateCursor.sol) | [`0x839542d75e5846227ea2a9b685a9afd1a1563b6e`](https://sepolia.basescan.org/address/0x839542d75e5846227ea2a9b685a9afd1a1563b6e) | 5 955 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
@@ -712,3 +713,84 @@ npx tsx scripts/deploy-demos.ts
 
 Le script lit la clé de déploiement dans `.env` (gitignoré) et ne l'imprime jamais — seule l'adresse
 apparaît dans sa sortie.
+
+---
+
+## `MandateAwareAggregateCursor` — le compteur unique de lignée (Base Sepolia)
+
+> **Contrat de référence, non audité, ne détient aucun fonds.** Testnet uniquement.
+
+```
+adresse : 0x839542d75e5846227ea2a9b685a9afd1a1563b6e
+mandat  : 0xfD786E6dDA41fAea07C45948114D497B0f39F32b  (V3, ni touché ni redéployé)
+code    : 5 955 octets · MAX_DEPTH 32
+```
+
+**Sourcify : `exact_match`**, création et exécution —
+[`sourcify.dev/server/v2/contract/84532/0x8395…3b6e`](https://sourcify.dev/server/v2/contract/84532/0x839542d75e5846227ea2a9b685a9afd1a1563b6e)
+
+### Pourquoi il compte
+
+C'est le profil lignée d'ERC-8312 adossé au mandat soulbound. Il porte ce que le mandat V3
+n'a pas : **un seul compteur, celui de la racine.**
+
+```solidity
+uint64 period = _currentPeriod(r);
+// --- conservation : un seul meter, celui de la racine ---
+if (_spentRoot[rootId][period] + amount > r.cap) revert RootCapExceeded();
+```
+
+Le mandat V3 borne la **largeur** — `allocatedOf` est débité du parent immédiat — mais pas
+la **profondeur** : une chaîne de D générations réémettant chacune son plafond atteint D fois
+celui de la racine (mesuré le 14/08 : racine 100, trois générations, lignée 300). Ici la
+profondeur ne multiplie rien, puisque tout le monde tire sur le même compteur.
+
+Il sépare aussi les deux choses que `maxSpendWei` confond dans le mandat : `nodeCap` est le
+plafond propre d'un nœud, `r.cap` le total de la lignée.
+
+### Le run de référence — racine `0x0af667e5…372f`, période 1 jour
+
+`TEST-SECTION5.md` prouvait cela **en local seulement**. Voici la même chose sur la chaîne.
+
+```
+racine                       cap 100 ETH
+  ├─ nœud 1  non plafonné    tire 40   → spentRoot  40 ETH
+  │   └─ nœud 3  cap 100     tire 25   → spentRoot  85 ETH     (profondeur 2)
+  └─ nœud 2  non plafonné    tire 20   → spentRoot  60 ETH
+                                          remainingRoot 15 ETH
+
+nœud 3 tire 20 de plus  →  REFUSÉ · custom error 0x94397511 = RootCapExceeded()
+   son plafond local autorisait : 100 ETH, dont 25 tirés
+   spentRoot après              : 85 ETH   (inchangé)
+   remainingRoot                : 15 ETH
+```
+
+**C'est le point.** Le plafond local du nœud disait oui ; le compteur de racine a dit non.
+Un nœud à la profondeur 2 ne s'échappe pas du budget de sa racine.
+
+### Une règle du contrat à connaître
+
+```solidity
+// un nœud plafonné est une feuille : il ne délègue pas
+if (p.nodeCap != 0) revert CappedNodeCannotDelegate();
+```
+
+`nodeCap == 0` signifie *non plafonné*, et c'est la condition pour pouvoir déléguer. Un nœud
+qui reçoit un plafond devient une feuille.
+
+### Reproduire
+
+```bash
+npx tsx scripts/compile.ts MandateAwareAggregateCursor
+npx tsx scripts/deploy-aggregate-cursor.ts        # déploie
+npx tsx scripts/exercise-aggregate-cursor.ts      # exerce un déploiement existant
+npx tsx scripts/verify-sourcify.ts MandateAwareAggregateCursor <adresse>
+```
+
+Les deux scripts refusent toute chaîne autre que Base Sepolia. Le second est idempotent : il
+ne recrée ni la racine ni les nœuds déjà présents.
+
+**Piège rencontré, noté pour la prochaine fois :** le RPC public accuse un retard
+lecture-après-écriture. Une écriture qui dépend de la précédente part avant que le nœud ne
+l'ait vue, et échoue en donnant l'apparence d'un bug de contrat. Les scripts laissent
+respirer 2,5 s entre deux écritures.
