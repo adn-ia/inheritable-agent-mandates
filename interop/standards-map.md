@@ -2,7 +2,12 @@
 
 *271 ERCs read, six in full. What each one actually does, and the one thing none of them do.*
 
-Last updated 2026-08-13.
+Last updated 2026-08-14.
+
+> **Correction, 14 August.** The ERC-8226 row originally described its enforcement as taking
+> place in a regulated token's pre-transfer hook. That is one of three venues its
+> specification defines, not the definition — corrected below, after @thamerdridi pointed it
+> out on the discussion thread. Thread activity figures are still as collected on 13 August.
 
 ---
 
@@ -39,7 +44,7 @@ February) is one such case, and it sits on the intent/solver layer rather than t
 
 | ERC | What it actually does | Status | Thread |
 |---|---|---|---|
-| **8226** Regulated Agent Mandate | A principal grants a scoped, capped, time-bounded mandate to one agent, checked inside a regulated token's existing pre-transfer hook. Per-transaction and cumulative caps, freeze, compliance provider. | Draft | **live** — 12 posts, last 2026-08-12 |
+| **8226** Regulated Agent Mandate | A principal grants a scoped, capped, time-bounded mandate to one agent. Per-transaction and cumulative caps, freeze, compliance provider. **Enforcement is venue-agnostic**: a regulated token's pre-transfer hook, an EIP-7702 delegated account, or a dedicated executor — all read the same mandate. | Draft | **live** — 12 posts, last 2026-08-12 |
 | **8196** AI Agent Authenticated Wallet | Executes only with cryptographic proof that the action complies with an owner-defined policy. Hash-chained audit trail, entropy commit-reveal against host manipulation. Layer 2 of a stack with ERC-8126. | **Final** | 14 posts, last 2026-07-20 |
 | **8199** Sandboxed Smart Wallet | Containment by isolation: the agent's wallet is fully detached from the owner's, the relationship one-directional. | Draft | dormant — 2 posts, 93 views |
 | **8273** Attestation-Gated Agentic Actions | Per-operation attestation, authorized in EIP-1153 transient storage and cleared at the end of the transaction. | Draft | — |
