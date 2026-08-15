@@ -11,15 +11,38 @@ import { geneId } from "../src/genome";
  *   npm run guardian -- embargo          → gel des dépenses
  *
  * Pour lever un embargo ou annuler un arrêt : supprime data/embargo.json ou data/kill.json.
- * Nécessite GUARDIAN_PRIVATE_KEY dans l'environnement — à tenir SÉPARÉ de l'agent.
+ * Nécessite la clé du gardien dans l'environnement — à tenir SÉPARÉE de l'agent.
+ * Deux noms acceptés : GUARDIAN_PRIVATE_KEY (gardien unique) ou GUARDIAN1_KEY
+ * (schéma à plusieurs gardiens).
  */
-const pk = process.env.GUARDIAN_PRIVATE_KEY;
+const pk = process.env.GUARDIAN_PRIVATE_KEY ?? process.env.GUARDIAN1_KEY;
 if (!pk || pk.startsWith("0x...")) {
-  console.error("GUARDIAN_PRIVATE_KEY manquante. Génère-la avec: npm run guardian:new");
+  console.error("Clé du gardien manquante : définis GUARDIAN_PRIVATE_KEY ou GUARDIAN1_KEY.");
+  console.error("Génère-la avec: npm run guardian:new");
   process.exit(1);
 }
 
 const account = privateKeyToAccount(pk as `0x${string}`);
+
+// Le signal ne vaut que si le vérificateur reconnaît le signataire : sans ce contrôle,
+// on émet un fichier signé qui sera rejeté plus tard, sans dire pourquoi.
+const attendue = process.env.GUARDIAN_ADDRESS;
+if (attendue && attendue.toLowerCase() !== account.address.toLowerCase()) {
+  console.error(`Cette clé signe pour ${account.address}, mais GUARDIAN_ADDRESS vaut ${attendue}.`);
+  console.error("Le signal serait émis puis refusé à la vérification. Aligne l'un sur l'autre.");
+  process.exit(1);
+}
+
+// Un gardien qui est l'agent ne garde rien : le verrou ne prouverait plus qu'un humain
+// a autorisé le geste. On avertit sans bloquer — c'est une erreur de configuration, pas
+// une commande invalide.
+if (process.env.PRIVATE_KEY && !process.env.PRIVATE_KEY.startsWith("0x...")) {
+  const agent = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`).address;
+  if (agent.toLowerCase() === account.address.toLowerCase()) {
+    console.warn("⚠️  Le gardien et l'agent sont la même adresse : l'agent s'autorise lui-même.");
+    console.warn("    Le verrou d'autorisation ne prouve plus rien. Sépare les deux clés.");
+  }
+}
 const gid = geneId();
 const cmd = process.argv[2];
 mkdirSync("data", { recursive: true });
