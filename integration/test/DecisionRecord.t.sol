@@ -12,6 +12,8 @@ contract ConfigurableMandate is IInheritableAgentMandate {
     bool public payee_ = true;
     uint256 public cap_ = 1 ether;
 
+    bool public boom_;                       // simule une lignée qui boucle / un état incohérent
+    function setBoom(bool b) external { boom_ = b; }
     function setOwner(address a) external { owner_ = a; }
     function setActive(bool b) external { active_ = b; }
     function setPayee(bool b) external { payee_ = b; }
@@ -22,7 +24,10 @@ contract ConfigurableMandate is IInheritableAgentMandate {
     function mandateOf(uint256) external view returns (uint256, uint16, bool, bool) {
         return (cap_, 5, true, false);
     }
-    function isActive(uint256) external view returns (bool) { return active_; }
+    function isActive(uint256) external view returns (bool) {
+        require(!boom_, "lineage walk failed");
+        return active_;
+    }
     function payeeAllowed(uint256, address) external view returns (bool) { return payee_; }
 }
 
@@ -55,8 +60,9 @@ contract DecisionRecordTest is Test {
         "COMMITMENT_REPLAY", "AGENT_ACTIVE     ", "PAYEE_ALLOWED    ",
         "EFFECTIVE_CAP    ", "ROOM             "
     ];
-    string[4] STATUS = ["ALLOW", "DENY", "STALE", "NOT_APPLICABLE"];
-    string[3] REMEDY = ["NONE", "REFRESH", "STOP"];
+    
+    string[4] REMEDY = ["NONE", "REFRESH", "STOP", "UNKNOWN"];
+    string[5] STATUS5 = ["ALLOW", "DENY", "STALE", "NOT_APPLICABLE", "UNDETERMINED"];
 
     function setUp() public {
         mandate = new ConfigurableMandate();
@@ -100,11 +106,11 @@ contract DecisionRecordTest is Test {
         MandateDecisionRecord.Finding[] memory f = rec.record(_as(a), _as(v));
         for (uint256 i = 0; i < f.length; i++) {
             console2.log(
-                string.concat("    ", CHECKS[uint8(f[i].check)], " : ", STATUS[uint8(f[i].status)]),
+                string.concat("    ", CHECKS[uint8(f[i].check)], " : ", STATUS5[uint8(f[i].status)]),
                 "  asOf=", f[i].asOf
             );
         }
-        (bool allowed, MandateDecisionRecord.Remedy r, uint8 d, uint8 s, uint8 n) =
+        (bool allowed, MandateDecisionRecord.Remedy r, uint8 d, uint8 s, uint8 n,) =
             rec.verdictOf(_as(a), _as(v));
         console2.log(string.concat("    -> remede : ", REMEDY[uint8(r)]));
         console2.log("    -> refus =", d, " perimes =", s);
@@ -119,7 +125,7 @@ contract DecisionRecordTest is Test {
         console2.log("  CAS 1 - tout est en ordre");
         _print(a, v);
 
-        (bool allowed, MandateDecisionRecord.Remedy r,,,) = rec.verdictOf(_as(a), _as(v));
+        (bool allowed, MandateDecisionRecord.Remedy r,,,,) = rec.verdictOf(_as(a), _as(v));
         assertTrue(allowed, "devrait etre permis");
         assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.NONE));
 
@@ -137,7 +143,7 @@ contract DecisionRecordTest is Test {
 
         MandateDecisionRecord.Finding[] memory f = rec.record(_as(a), _as(v));
         assertEq(uint8(f[1].status), uint8(MandateDecisionRecord.Status.STALE), "FRESHNESS doit etre STALE");
-        (, MandateDecisionRecord.Remedy r, uint8 d,,) = rec.verdictOf(_as(a), _as(v));
+        (, MandateDecisionRecord.Remedy r, uint8 d,,,) = rec.verdictOf(_as(a), _as(v));
         assertEq(d, 0, "aucun refus reel");
         assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.REFRESH), "remede = rafraichir");
 
@@ -156,7 +162,7 @@ contract DecisionRecordTest is Test {
         MandateDecisionRecord.Finding[] memory f = rec.record(_as(a), _as(v));
         assertEq(uint8(f[1].status), uint8(MandateDecisionRecord.Status.ALLOW), "FRESHNESS reste ALLOW");
         assertEq(uint8(f[5].status), uint8(MandateDecisionRecord.Status.DENY), "VERDICT_DECISION doit etre DENY");
-        (, MandateDecisionRecord.Remedy r,,,) = rec.verdictOf(_as(a), _as(v));
+        (, MandateDecisionRecord.Remedy r,,,,) = rec.verdictOf(_as(a), _as(v));
         assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.STOP), "remede = arreter");
     }
 
@@ -173,7 +179,7 @@ contract DecisionRecordTest is Test {
         assertEq(uint8(f[1].status), uint8(MandateDecisionRecord.Status.STALE));
         assertEq(uint8(f[5].status), uint8(MandateDecisionRecord.Status.DENY));
 
-        (, MandateDecisionRecord.Remedy r, uint8 d, uint8 s,) = rec.verdictOf(_as(a), _as(v));
+        (, MandateDecisionRecord.Remedy r, uint8 d, uint8 s,,) = rec.verdictOf(_as(a), _as(v));
         assertEq(d, 1); assertEq(s, 1);
         assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.STOP), "STOP prime sur REFRESH");
 
@@ -195,7 +201,7 @@ contract DecisionRecordTest is Test {
         MandateDecisionRecord.Finding[] memory f = rec.record(_as(a), _as(v));
         assertEq(uint8(f[9].status), uint8(MandateDecisionRecord.Status.NOT_APPLICABLE));
 
-        (bool allowed, MandateDecisionRecord.Remedy r,,, uint8 n) = rec.verdictOf(_as(a), _as(v));
+        (bool allowed, MandateDecisionRecord.Remedy r,,, uint8 n,) = rec.verdictOf(_as(a), _as(v));
         assertEq(n, 1);
         assertTrue(allowed, "sans objet n'empeche PAS d'executer");
         assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.NONE));
@@ -235,7 +241,7 @@ contract DecisionRecordTest is Test {
         assertEq(until, exp, "le minimum des peremptions connues");
 
         vm.warp(uint256(exp) + 1);
-        (, MandateDecisionRecord.Remedy r,, uint8 s,) = rec.verdictOf(_as(a), _as(v));
+        (, MandateDecisionRecord.Remedy r,, uint8 s,,) = rec.verdictOf(_as(a), _as(v));
         console2.log("    une seconde plus tard, sans que rien d'autre ne bouge :");
         console2.log(string.concat("    remede -> ", REMEDY[uint8(r)]));
         assertEq(s, 1);
@@ -314,7 +320,7 @@ contract DecisionRecordTest is Test {
         MandateGateV3.Verdict memory v = _verdict(approve, uint64(block.timestamp + (fresh ? 1 days : 0)));
         if (!fresh) vm.warp(block.timestamp + 1);
 
-        (bool allowed,,,,) = rec.verdictOf(_as(a), _as(v));
+        (bool allowed,,,,,) = rec.verdictOf(_as(a), _as(v));
         // Le lecteur permet <=> la porte aboutit. Aucune exception tolérée.
 
         try gate.execute(a, v) returns (bytes32) {
@@ -324,5 +330,28 @@ contract DecisionRecordTest is Test {
             console2.log(string.concat("  la porte REVERTE : ", reason));
             assertFalse(allowed, "DIVERGENCE : la porte reverte, le lecteur permet");
         }
+    }
+
+    /// Le cinquième état : la question existe, rien ne l'a refusée, et on n'a pas pu répondre.
+    function test_11_indetermine_n_est_pas_un_refus() public {
+        mandate.setBoom(true);
+        MandateGateV3.Action memory a = _action();
+        MandateGateV3.Verdict memory v = _verdict(true, uint64(block.timestamp + 1 days));
+
+        console2.log("  CAS 11 - la marche d'ancetres echoue");
+        MandateDecisionRecord.Finding[] memory f = rec.record(_as(a), _as(v));  // ne panique PAS
+        assertEq(uint8(f[7].status), uint8(MandateDecisionRecord.Status.UNDETERMINED), "AGENT_ACTIVE");
+
+        (bool allowed, MandateDecisionRecord.Remedy r, uint8 d,,, uint8 u) = rec.verdictOf(_as(a), _as(v));
+        console2.log("    onze constats rendus quand meme ; indetermines =", u);
+        assertEq(d, 0, "indetermine n'est PAS un refus");
+        assertEq(u, 1);
+        assertFalse(allowed, "on ne conclut pas a partir d'un indetermine");
+        assertEq(uint8(r), uint8(MandateDecisionRecord.Remedy.UNKNOWN));
+
+        // et la porte, elle, reverte : le differentiel tient.
+        vm.expectRevert(bytes("lineage walk failed"));
+        gate.execute(a, v);
+        console2.log("    la porte reverte ; le lecteur ne permet pas : les deux sont d'accord");
     }
 }

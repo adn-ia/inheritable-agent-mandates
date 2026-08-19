@@ -106,6 +106,14 @@ contract MandateDecisionRecord {
      * `DENY` et `STALE` sont séparés parce que leurs remèdes s'opposent : rafraîchir
      * contre arrêter. Les confondre, c'est demander à l'intégrateur de deviner.
      *
+     * `UNDETERMINED` est le cinquième, et il dit ce qu'aucun des autres ne peut dire :
+     * la question EXISTE, elle n'est pas refusée, mais l'évaluer a échoué. La comptabilité
+     * d'un agent peut être incohérente et faire déborder `room()` ; une lignée peut boucler
+     * et épuiser le gaz dans `effectiveCap()`. Rendre `DENY` serait mentir — rien n'a
+     * refusé. C'est l'équivalent du champ `evaluated: false` proposé par babyblueviper1
+     * sur le fil ERC-8226 : « ce niveau n'a pas pu se prononcer » n'est pas « ce niveau
+     * dit non ». Un `UNDETERMINED` interdit de conclure que l'action passera.
+     *
      * `NOT_APPLICABLE` n'est pas « on n'a pas demandé » : c'est « la question n'existe pas
      * à ce niveau tant qu'un autre n'a pas répondu ». Sans agent, il n'y a pas de plafond
      * à dépasser. Un contrôle qui PEUT répondre seul répond toujours, même si un autre a
@@ -115,7 +123,8 @@ contract MandateDecisionRecord {
         ALLOW,
         DENY,
         STALE,
-        NOT_APPLICABLE
+        NOT_APPLICABLE,
+        UNDETERMINED
     }
 
     /**
@@ -128,7 +137,8 @@ contract MandateDecisionRecord {
     enum Remedy {
         NONE,    // rien ne s'oppose
         REFRESH, // rien n'est refusé, une preuve a seulement vieilli
-        STOP     // au moins un refus réel : rafraîchir n'y changera rien
+        STOP,    // au moins un refus réel : rafraîchir n'y changera rien
+        UNKNOWN  // un contrôle n'a pas pu être évalué : on ne conclut pas
     }
 
     struct Finding {
@@ -219,12 +229,11 @@ contract MandateDecisionRecord {
         // aboutissait, le lecteur refusait. Un lecteur qui invente un contrôle absent de
         // la porte ne rend pas compte, il légifère.
 
-        f[7] = Finding(
-            Check.AGENT_ACTIVE,
-            mandate.isActive(a.agentId) ? Status.ALLOW : Status.DENY,
-            nowTs,
-            0
-        );
+        try mandate.isActive(a.agentId) returns (bool act) {
+            f[7] = Finding(Check.AGENT_ACTIVE, act ? Status.ALLOW : Status.DENY, nowTs, 0);
+        } catch {
+            f[7] = Finding(Check.AGENT_ACTIVE, Status.UNDETERMINED, nowTs, 0);
+        }
 
         f[8] = Finding(
             Check.PAYEE_ALLOWED,
@@ -242,20 +251,23 @@ contract MandateDecisionRecord {
         // PANIQUER le contrat au lieu de rendre un constat. `execute` panique aussi, mais
         // lui ne promet pas onze constats — nous si.
         uint256 sp = gate.spent(a.agentId);
-        uint256 cap = gate.effectiveCap(a.agentId);
-        if (cap == type(uint256).max) {
-            f[9] = Finding(Check.EFFECTIVE_CAP, Status.NOT_APPLICABLE, nowTs, 0);
-        } else {
-            bool overCap = sp > cap || a.amount > cap - sp;
-            f[9] = Finding(Check.EFFECTIVE_CAP, overCap ? Status.DENY : Status.ALLOW, nowTs, 0);
+        try gate.effectiveCap(a.agentId) returns (uint256 cap) {
+            if (cap == type(uint256).max) {
+                f[9] = Finding(Check.EFFECTIVE_CAP, Status.NOT_APPLICABLE, nowTs, 0);
+            } else {
+                bool overCap = sp > cap || a.amount > cap - sp;
+                f[9] = Finding(Check.EFFECTIVE_CAP, overCap ? Status.DENY : Status.ALLOW, nowTs, 0);
+            }
+        } catch {
+            f[9] = Finding(Check.EFFECTIVE_CAP, Status.UNDETERMINED, nowTs, 0);
         }
 
-        f[10] = Finding(
-            Check.ROOM,
-            a.amount <= gate.room(a.agentId) ? Status.ALLOW : Status.DENY,
-            nowTs,
-            0
-        );
+        // `room()` soustrait sans borne : une comptabilité incohérente la fait déborder.
+        try gate.room(a.agentId) returns (uint256 rm) {
+            f[10] = Finding(Check.ROOM, a.amount <= rm ? Status.ALLOW : Status.DENY, nowTs, 0);
+        } catch {
+            f[10] = Finding(Check.ROOM, Status.UNDETERMINED, nowTs, 0);
+        }
     }
 
     /**
@@ -268,18 +280,20 @@ contract MandateDecisionRecord {
     function verdictOf(IMandateGateV3Reader.Action calldata a, IMandateGateV3Reader.Verdict calldata v)
         external
         view
-        returns (bool allowed, Remedy remedy, uint8 denials, uint8 stales, uint8 notApplicable)
+        returns (bool allowed, Remedy remedy, uint8 denials, uint8 stales, uint8 notApplicable, uint8 undetermined)
     {
         Finding[] memory f = record(a, v);
         for (uint256 i = 0; i < f.length; i++) {
             if (f[i].status == Status.DENY) denials++;
             else if (f[i].status == Status.STALE) stales++;
             else if (f[i].status == Status.NOT_APPLICABLE) notApplicable++;
+            else if (f[i].status == Status.UNDETERMINED) undetermined++;
         }
         // `notApplicable` est compté et rendu, mais ne pèse PAS sur l'issue : une question
         // sans objet n'a jamais empêché la porte de laisser passer.
-        allowed = (denials == 0 && stales == 0);
+        allowed = (denials == 0 && stales == 0 && undetermined == 0);
         if (denials > 0) remedy = Remedy.STOP;
+        else if (undetermined > 0) remedy = Remedy.UNKNOWN;
         else if (stales > 0) remedy = Remedy.REFRESH;
         else remedy = Remedy.NONE;
     }

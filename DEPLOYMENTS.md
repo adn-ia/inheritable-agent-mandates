@@ -24,7 +24,7 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateGateV3`](contracts/MandateGateV3.sol) | [`0x34a9ab58756b9a0579d9d156292412bbed87cbe8`](https://sepolia.basescan.org/address/0x34a9ab58756b9a0579d9d156292412bbed87cbe8) | 11 865 o | ci-dessous |
 | [`InheritableAgentMandateV3`](contracts/InheritableAgentMandateV3.sol) | [`0xfd786e6dda41faea07c45948114d497b0f39f32b`](https://sepolia.basescan.org/address/0xfd786e6dda41faea07c45948114d497b0f39f32b) | 3 961 o | ci-dessous |
 | [`MandateAwareAggregateCursor`](contracts/MandateAwareAggregateCursor.sol) | [`0x839542d75e5846227ea2a9b685a9afd1a1563b6e`](https://sepolia.basescan.org/address/0x839542d75e5846227ea2a9b685a9afd1a1563b6e) | 5 955 o | ci-dessous |
-| [`MandateDecisionRecord`](contracts/MandateDecisionRecord.sol) | [`0x6c598329d53f14f3dc2399b405a1b1ad655d4b68`](https://sepolia.basescan.org/address/0x6c598329d53f14f3dc2399b405a1b1ad655d4b68) | 4 865 o | ci-dessous |
+| [`MandateDecisionRecord`](contracts/MandateDecisionRecord.sol) | [`0x05544ed4823587534612cc7159019c109ed0c48b`](https://sepolia.basescan.org/address/0x05544ed4823587534612cc7159019c109ed0c48b) | 5 361 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
@@ -846,7 +846,7 @@ preuve ; trois refus l'attendent derrière, dont deux qu'aucun rafraîchissement
 
 ```bash
 R=https://sepolia.base.org
-REC=0x6c598329d53f14f3dc2399b405a1b1ad655d4b68
+REC=0x05544ed4823587534612cc7159019c109ed0c48b
 cast call $REC "gate()(address)" --rpc-url $R      # -> 0x34A9...cbE8, la porte inchangée
 cast call $REC "record((uint256,address,uint256,bytes32),(bytes32,address,bool,uint256,uint64,bytes))((uint8,uint8,uint64,uint64)[])" \
   "(3,0x000000000000000000000000000000000000dEaD,1000,0x0000000000000000000000000000000000000000000000000000000000008226)" \
@@ -854,9 +854,21 @@ cast call $REC "record((uint256,address,uint256,bytes32),(bytes32,address,bool,u
   --rpc-url $R
 ```
 
-### Une première version était fausse, et elle est caduque
+### Cinq états, dont un qui refuse de conclure
 
-`0xe63B5C1a1bA8fA6F1EbA5488401e54c6C64FB2c2` — **ne pas s'en servir.** Elle décidait
+`UNDETERMINED` dit ce qu'aucun autre ne peut dire : la question existe, rien ne l'a refusée,
+et l'évaluer a échoué. `room()` soustrait sans borne et déborde sur une comptabilité
+incohérente ; `effectiveCap()` et `isActive()` remontent la lignée et bouclent si elle
+contient un cycle. Rendre `DENY` serait mentir — rien n'a refusé. C'est l'équivalent du
+champ `evaluated: false` proposé par babyblueviper1 sur le fil ERC-8226. Un `UNDETERMINED`
+interdit de conclure que l'action passera, et n'est pas compté comme un refus.
+
+### Deux versions antérieures, toutes deux caduques
+
+`0x6c598329d53F14f3Dc2399B405A1B1ad655d4B68` — correcte mais incomplète : elle pouvait
+paniquer au lieu de rendre ses onze constats, faute du cinquième état.
+
+`0xe63B5C1a1bA8fA6F1EbA5488401e54c6C64FB2c2` — **fausse.** Elle décidait
 « sans objet » dès que `ownerOf(agentId) == 0`. Or `execute` n'interroge jamais `ownerOf`,
 et `isActive` remonte la lignée sans rien trouver de gelé : elle répond vrai sur un agent
 inexistant. Le lecteur bloquait donc ce que la porte laissait passer. Défaut trouvé par revue
