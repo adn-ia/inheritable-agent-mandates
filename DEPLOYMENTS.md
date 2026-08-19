@@ -24,6 +24,7 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateGateV3`](contracts/MandateGateV3.sol) | [`0x34a9ab58756b9a0579d9d156292412bbed87cbe8`](https://sepolia.basescan.org/address/0x34a9ab58756b9a0579d9d156292412bbed87cbe8) | 11 865 o | ci-dessous |
 | [`InheritableAgentMandateV3`](contracts/InheritableAgentMandateV3.sol) | [`0xfd786e6dda41faea07c45948114d497b0f39f32b`](https://sepolia.basescan.org/address/0xfd786e6dda41faea07c45948114d497b0f39f32b) | 3 961 o | ci-dessous |
 | [`MandateAwareAggregateCursor`](contracts/MandateAwareAggregateCursor.sol) | [`0x839542d75e5846227ea2a9b685a9afd1a1563b6e`](https://sepolia.basescan.org/address/0x839542d75e5846227ea2a9b685a9afd1a1563b6e) | 5 955 o | ci-dessous |
+| [`MandateDecisionRecord`](contracts/MandateDecisionRecord.sol) | [`0x6c598329d53f14f3dc2399b405a1b1ad655d4b68`](https://sepolia.basescan.org/address/0x6c598329d53f14f3dc2399b405a1b1ad655d4b68) | 4 865 o | ci-dessous |
 
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
@@ -794,3 +795,70 @@ ne recrée ni la racine ni les nœuds déjà présents.
 lecture-après-écriture. Une écriture qui dépend de la précédente part avant que le nœud ne
 l'ait vue, et échoue en donnant l'apparence d'un bug de contrat. Les scripts laissent
 respirer 2,5 s entre deux écritures.
+
+
+## `MandateDecisionRecord` — le compte rendu que `execute` ne peut pas rendre
+
+Lecture seule, déployé **à côté** de `MandateGateV3` déjà en chaîne, qu'il lit par ses
+accesseurs publics. La porte n'est pas modifiée : son source doit continuer de correspondre
+au bytecode déployé, et c'est aussi la situation réelle d'un intégrateur, qui hérite d'une
+porte au lieu de la redéployer.
+
+`execute` enchaîne onze `require` : le premier qui échoue arrête tout et renvoie une chaîne
+de caractères. `record()` évalue les onze, sans jamais s'arrêter, et rend un constat par
+contrôle — lequel, son état, l'instant où la réponse est établie, jusqu'à quand elle vaut.
+Quatre états, parce que leurs remèdes diffèrent : `ALLOW`, `DENY` (arrêter), `STALE`
+(rafraîchir), `NOT_APPLICABLE` (la question n'a pas d'objet ici, et n'empêche rien).
+
+### Le cas réel, sur l'agent 3
+
+Agent existant, actif, entièrement dépensé (`received` = `spent` = 4 × 10¹⁵). Verdict
+réellement signé par un émetteur que le gardien reconnaît, mais **périmé** et **négatif**.
+
+| | |
+|---|---|
+| `commit(action)` | `0x953280e9099f7cd07f806be92e89208c6a5bfd78a4ff5613837681b89b8125b4` |
+| Transaction en échec, publique | [`0x66b02b9b…d549b3`](https://sepolia.basescan.org/tx/0x66b02b9b4a3c020d58e994448914e4332b73214a6aea5121ee25f14c92d549b3) — `status 0` |
+
+Ce que la porte rend : `execution reverted: verdict expired`. Une chaîne. Elle dit
+*rafraîchis ta preuve*.
+
+Ce que le compte rendu rend, au même instant, sur la même chaîne :
+
+| contrôle | état |
+|---|---|
+| `BINDING` | `ALLOW` |
+| **`FRESHNESS`** | **`STALE`** — vaut jusqu'à `1700000000` |
+| `SIGNATURE` | `ALLOW` |
+| `ISSUER_AUTHORITY` | `ALLOW` |
+| `NONCE_REPLAY` | `ALLOW` |
+| **`VERDICT_DECISION`** | **`DENY`** — l'émetteur refuse |
+| `COMMITMENT_REPLAY` | `ALLOW` |
+| `AGENT_ACTIVE` | `ALLOW` |
+| `PAYEE_ALLOWED` | `ALLOW` |
+| **`EFFECTIVE_CAP`** | **`DENY`** — plafond de lignée atteint |
+| **`ROOM`** | **`DENY`** — il ne reste rien |
+
+`verdictOf` → 3 refus, 1 périmé, remède `STOP`. La porte envoie l'intégrateur rafraîchir sa
+preuve ; trois refus l'attendent derrière, dont deux qu'aucun rafraîchissement ne lèvera.
+
+### Vérification indépendante
+
+```bash
+R=https://sepolia.base.org
+REC=0x6c598329d53f14f3dc2399b405a1b1ad655d4b68
+cast call $REC "gate()(address)" --rpc-url $R      # -> 0x34A9...cbE8, la porte inchangée
+cast call $REC "record((uint256,address,uint256,bytes32),(bytes32,address,bool,uint256,uint64,bytes))((uint8,uint8,uint64,uint64)[])" \
+  "(3,0x000000000000000000000000000000000000dEaD,1000,0x0000000000000000000000000000000000000000000000000000000000008226)" \
+  "(0x953280e9099f7cd07f806be92e89208c6a5bfd78a4ff5613837681b89b8125b4,0x448Cc1c5689D9dFA2474265053A8FDF4bEb3B0Ae,false,82260001,1700000000,0x691d82cfa917afb262a9201bdca65fed77b210f2172955dc72b558534ebbb4786bc171de732de27b015037d8c88d02ce159b73be01d736e7716a3f3a28561a611c)" \
+  --rpc-url $R
+```
+
+### Une première version était fausse, et elle est caduque
+
+`0xe63B5C1a1bA8fA6F1EbA5488401e54c6C64FB2c2` — **ne pas s'en servir.** Elle décidait
+« sans objet » dès que `ownerOf(agentId) == 0`. Or `execute` n'interroge jamais `ownerOf`,
+et `isActive` remonte la lignée sans rien trouver de gelé : elle répond vrai sur un agent
+inexistant. Le lecteur bloquait donc ce que la porte laissait passer. Défaut trouvé par revue
+adverse, reproduit par un test différentiel, puis supprimé. Le banc porte désormais ce test,
+fuzzé : le lecteur permet **si et seulement si** la porte aboutit.
