@@ -140,10 +140,28 @@ one that is broader on any dimension.
 
 ### Cascading freeze and effective bounds
 
-`isActive(agentId)` MUST walk from `agentId` up the `parentOf` chain and return `false` if
-any agent in the chain is `frozen`, or is `requireLease` and past `validUntil`. Thus freezing
-a parent deactivates its entire subtree, and letting a parent's lease lapse deactivates all
-descendants.
+`isActive(agentId)` MUST return `false` if any agent in the `parentOf` chain is `frozen`, and
+MUST return `false` if the agent's own lease has lapsed. Thus freezing a parent deactivates its
+entire subtree, and letting a parent's lease lapse deactivates all descendants.
+
+The two clauses are not enforced the same way, and the asymmetry is deliberate rather than an
+optimisation. `frozen` is set *after* the mandate is written and no local value summarises it,
+so it requires an unbounded walk. Expiry is fixed *at* the write and ordered by `spawn`, which
+forbids a child outliving its parent — an expired ancestor therefore implies an expired
+descendant, and reading upward adds nothing. A conforming implementation MAY read `validUntil`
+locally for this reason.
+
+That permission is conditional, and implementations MUST NOT rely on it outside its
+condition. It holds only while every deadline is fixed at `spawn` and never moves afterwards.
+Any mechanism that can extend a `validUntil` after the fact — a renewal, a guardian-set
+deadline, a re-issued mandate — destroys the ordering that justifies the local read: a
+descendant whose lease is current can then outlive an ancestor that stopped renewing, and
+nothing detects it. An implementation offering such a mechanism MUST either include
+`validUntil` in the unbounded walk, or require the ancestor to be active at the moment of
+renewal, which bounds the over-live window to one descendant period instead of removing it.
+
+*Credit: the conditional nature of this permission was identified by `zexoverz` in the
+discussion thread.*
 
 `effectiveMaxSpendWei(agentId)` MUST return the minimum `maxSpendWei` across the agent and all
 ancestors. Execution-layer enforcers (e.g. an ERC-8226 enforcer, a paymaster, or a smart
