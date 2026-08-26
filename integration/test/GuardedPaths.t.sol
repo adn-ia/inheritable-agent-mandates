@@ -101,14 +101,18 @@ contract GuardedPathsTest is Test {
     InheritableAgentMandateV3 mandate;
     PathGuard guard;
 
-    address constant GUARDIAN = address(0xG1);
-    address constant AGENT    = address(0xA1);
-    address constant PAYEE    = address(0xdEaD);
+    address GUARDIAN;
+    address AGENT;
+    address PAYEE;
 
     uint256 constant CAP = 100 ether;
     uint256 agentId;
 
     function setUp() public {
+        GUARDIAN = makeAddr("guardian");
+        AGENT    = makeAddr("agent");
+        PAYEE    = makeAddr("payee");
+
         vm.prank(GUARDIAN);
         mandate = new InheritableAgentMandateV3(GUARDIAN);
         guard = new PathGuard(mandate);
@@ -129,7 +133,7 @@ contract GuardedPathsTest is Test {
 
     // -----------------------------------------------------------------------
     function test_regimeA_voie_directe_subsiste() public {
-        console2.log("=== REGIME A — une voie directe subsiste a cote du portail ===");
+        console2.log("=== REGIME A - une voie directe subsiste a cote du portail ===");
         Asset asset = new Asset(address(guard), true);
         asset.credit(address(guard), 1000 ether);
         asset.credit(AGENT, 1000 ether);
@@ -165,7 +169,7 @@ contract GuardedPathsTest is Test {
 
     // -----------------------------------------------------------------------
     function test_regimeB_actif_sans_voie_non_gardee() public {
-        console2.log("=== REGIME B — l'actif n'accepte que le portail ===");
+        console2.log("=== REGIME B - l'actif n'accepte que le portail ===");
         Asset asset = new Asset(address(guard), false);
         asset.credit(address(guard), 1000 ether);
         asset.credit(AGENT, 1000 ether);
@@ -199,7 +203,7 @@ contract GuardedPathsTest is Test {
 
     // -----------------------------------------------------------------------
     function test_chemin_non_declare() public {
-        console2.log("=== Chemin non declare — le portail lui-meme ===");
+        console2.log("=== Chemin non declare - le portail lui-meme ===");
         Asset asset = new Asset(address(guard), false);
         asset.credit(address(guard), 1000 ether);
 
