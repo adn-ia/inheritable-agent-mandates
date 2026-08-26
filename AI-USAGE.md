@@ -26,7 +26,7 @@ because **a deployed contract accepted or rejected it**, not because a model ass
 | **DeepSeek** | adversarial review. Given a contract and told to break it, with no hint as to what checks existed. |
 | **Perplexity, ChatGPT, Gemini** | independent refutation passes in the four-family method (§5). Never used for drafting. |
 
-No autocomplete assistant (Copilot, Cursor, or equivalent) was used.
+No autocomplete assistant (Copilot, Cursor, or equivalent) was used on this repository.
 
 ## 2. Attribution — where AI touched the code
 
