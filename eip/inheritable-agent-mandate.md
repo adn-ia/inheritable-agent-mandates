@@ -160,8 +160,57 @@ nothing detects it. An implementation offering such a mechanism MUST either incl
 `validUntil` in the unbounded walk, or require the ancestor to be active at the moment of
 renewal, which bounds the over-live window to one descendant period instead of removing it.
 
-*Credit: the conditional nature of this permission was identified by `zexoverz` in the
-discussion thread.*
+### Effective expiry is a chain minimum
+
+Where any mechanism can move a deadline after `spawn`, `isActive` MUST read expiry across the
+chain, and the quantity that governs liveness is:
+
+```
+effectiveExpiry(id) = min(current expiry) over id and every ancestor of id
+```
+
+An agent's own deadline therefore does not decide whether it is alive; its ancestors do, at
+every read. Keeping a depth-`d` agent usable is a `d`-way operation, and the party paying for
+a node's period is not the party who can keep it usable.
+
+**No direction constraint is placed on period length.** It appears to need one, because under
+a local read a longer child period bought survival past a lapsed ancestor. The chain minimum
+removes that directly. What remains, when a child's period is longer than its parent's, is
+that the child spends part of a period it paid for inactive. That is a **liveness** property,
+not a soundness one, and it cannot be normative: a conforming parent may always simply stop
+renewing. Implementations SHOULD align periods along a lineage, and this specification names
+the failure mode rather than forbidding it. Stating the chain minimum instead of a direction
+constraint also stays correct if a later revision allows a period to be shortened.
+
+### `isActive` MUST be total
+
+`isActive(agentId)` MUST NOT revert. It MUST return `false` where it cannot establish
+liveness.
+
+This is a requirement on the interface, not on any one arithmetic path. Once every read walks
+the chain, a single value held by one ancestor decides the outcome for every descendant, and
+whoever wrote that value is not who loses. A consumer reading at consumption has no correct
+response to a revert: treating it as inactive hands any ancestor a denial switch over a
+subtree it does not own; treating it as active is a silent spend against a predicate nobody
+could read; catching and choosing is the consumer inventing an answer the registry never gave.
+A revert is loud, but loud at the wrong party — the descendant's consumer hears it and cannot
+act, the ancestor that caused it never hears it at all.
+
+Range checks on individual setters close individual paths. Totality closes the class,
+including whatever field joins the walk in a later revision.
+
+### A matching mandate root is not authority
+
+`mandateRoot` commits to clauses. It does not commit to anything set after the write. A
+consumer that pins a root and later verifies the pin learns that the clauses are unchanged; it
+learns nothing about freeze, expiry or any other posterior state.
+
+Consumers MUST therefore read `isActive` **at consumption**, not at pin time. The failure this
+prevents is quiet rather than loud: nothing reverts, the pin verifies, and a frozen subtree
+spends.
+
+*Credit: the chain minimum, the totality requirement and the consumption rule were worked out
+with `zexoverz` in the discussion thread.*
 
 `effectiveMaxSpendWei(agentId)` MUST return the minimum `maxSpendWei` across the agent and all
 ancestors. Execution-layer enforcers (e.g. an ERC-8226 enforcer, a paymaster, or a smart
@@ -221,6 +270,16 @@ accompanies this proposal. It is unaudited and intended for illustration.
   backstop for such cases.
 - **Guardian compromise.** The guardian can mint, freeze and renew. It SHOULD be a multisig,
   timelock, or proof-of-personhood gate rather than a single hot key.
+- **A spawned child with no owner is unreclaimable, and unclosable.** `spawn` MUST reject a
+  zero child owner. The reference implementation deployed on Base Sepolia does not, and the
+  consequence is worse than a burned allocation. A child spawned to the zero address is
+  debited against its lineage like any other, but no party can act for it. Under any death
+  condition the child or its owner must reach, that slice never becomes reclaimable — it does
+  not merely sit unused, it sits **outside the conservation rule**, which has no way to close
+  for that lineage. The general form is the requirement, not the zero check: **reclamation
+  needs a death condition reachable without the child's cooperation.** A time-based trigger
+  satisfies it; a cooperative one does not. Conservation that depends on the constrained party
+  cooperating is not conservation.
 - **Aggregate spend.** `effectiveMaxSpendWei` bounds each agent (the minimum cap along its lineage),
   not the *sum* across many siblings: N children each under the cap can together exceed the root's.
   Deployments that need an aggregate bound SHOULD partition the budget at spawn (debiting the parent)

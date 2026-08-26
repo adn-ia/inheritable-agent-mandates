@@ -95,11 +95,42 @@ contract InheritableAgentMandateV5 {
         return m.periodStart + uint64(m.periodLength) * uint64(m.periodCount);
     }
 
+    /// @dev    Calcul TOTAL de l'échéance courante. Ne révèle jamais : rend `ok = false`
+    ///         si l'arithmétique déborderait. Voir la note de totalité sur `isActive`.
+    function _expiry(uint256 id) internal view returns (uint64 exp, bool ok) {
+        Mandate storage m = mandateOf[id];
+        if (m.periodStart == 0) return (0, true);          // pas de bail
+        unchecked {
+            uint256 e = uint256(m.periodStart)
+                      + uint256(m.periodLength) * uint256(periodsUsed[id]);
+            if (e > type(uint64).max) return (0, false);
+            return (uint64(e), true);
+        }
+    }
+
     /// @notice Échéance courante, DÉRIVÉE du compteur. Toujours <= `absoluteEnd`.
     function currentExpiry(uint256 id) public view returns (uint64) {
-        Mandate storage m = mandateOf[id];
-        if (m.periodStart == 0) return 0;
-        return m.periodStart + uint64(m.periodLength) * uint64(periodsUsed[id]);
+        (uint64 e, ) = _expiry(id);
+        return e;
+    }
+
+    /// @notice Échéance EFFECTIVE : le minimum sur l'agent et TOUS ses ancêtres.
+    /// @dev    C'est la quantité qui gouverne la vivacité, pas l'échéance propre. Une fois
+    ///         que la lecture remonte la chaîne, l'échéance d'un nœud ne décide plus s'il est
+    ///         vivant — ses ancêtres le décident, à chaque lecture. Maintenir vivant un agent
+    ///         de profondeur d est une opération à d parties, et celui qui paie la période
+    ///         d'un nœud n'est pas celui qui peut le garder utilisable.
+    ///         Rend 0 si aucun bail n'existe sur la chaîne. Total : ne révèle jamais.
+    function effectiveExpiry(uint256 id) public view returns (uint64) {
+        uint64 best = 0; // 0 = aucun bail rencontré
+        uint256 cur = id;
+        while (cur != 0) {
+            (uint64 e, bool ok) = _expiry(cur);
+            if (!ok) return 1; // valeur impossible : traitée comme expirée depuis toujours
+            if (e != 0 && (best == 0 || e < best)) best = e;
+            cur = parentOf[cur];
+        }
+        return best;
     }
 
     /// @notice Renouveler = consommer une période déjà accordée. Ne repousse rien.
@@ -216,6 +247,14 @@ contract InheritableAgentMandateV5 {
     ///         Un parent qui cesse de renouveler expire tôt alors que son enfant court
     ///         jusqu'à sa propre échéance — mesuré à 150 jours de survie sur des périodes
     ///         désalignées. Le coût est O(profondeur) ; c'est le prix du renouvellement.
+    /// @dev    TOTALITÉ — cette fonction NE RÉVÈLE JAMAIS. Elle rend `false` quand elle ne
+    ///         peut pas établir la vivacité. Exigence d'interface, pas de chemin arithmétique :
+    ///         dès que chaque lecture remonte la chaîne, une seule valeur détenue par un
+    ///         ancêtre décide du sort de tous ses descendants, et celui qui l'a écrite n'est
+    ///         pas celui qui perd. Un consommateur qui lit à l'instant de consommer n'a aucune
+    ///         réponse correcte face à un revert. Un contrôle de bornes ferme un chemin ; la
+    ///         totalité ferme la classe, y compris le prochain champ qui rejoindra la marche.
+    ///         Règle dégagée avec zexoverz sur le fil.
     function isActive(uint256 id) public view returns (bool) {
         if (!exists(id)) return false;
 
@@ -224,8 +263,10 @@ contract InheritableAgentMandateV5 {
             Mandate storage m = mandateOf[cur];
             if (m.frozen) return false;
             if (m.periodStart != 0) {
-                if (block.timestamp < m.periodStart) return false;      // bail pas commencé
-                if (block.timestamp > currentExpiry(cur)) return false;  // bail expiré
+                if (block.timestamp < m.periodStart) return false;   // bail pas commencé
+                (uint64 e, bool ok) = _expiry(cur);
+                if (!ok) return false;                                // TOTALITÉ : jamais de revert
+                if (block.timestamp > e) return false;                // bail expiré
             }
             cur = parentOf[cur];
         }
