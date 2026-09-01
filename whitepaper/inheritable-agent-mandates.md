@@ -1,14 +1,16 @@
 # Inheritable Agent Mandates
 ### A non-strippable, identity-anchored leash for autonomous on-chain AI agents
 
-**Author:** Helmy Mekaoui · **Version:** 0.7 (draft) · **Date:** 2026-08-09
-**Companion artifacts:** a reference contract (`InheritableAgentMandate`) **now deployed and exercised on Base mainnet** (Sourcify `exact_match`), a working prototype (M0/M1/M3), an on-chain schnorr-verifying gate independently cross-checked with a third party, and the draft standard **ERC-8370, "Inheritable Agent Mandates."**
+**Author:** Helmy Mekaoui · **Version:** 0.8 (draft) · **Date:** 2026-09-01
+**Companion artifacts:** a reference contract (`InheritableAgentMandate`) **deployed and exercised on Base mainnet** (Sourcify `exact_match`); **thirteen contracts live on Base Sepolia**, including three mandate revisions and three gates; a working prototype (M0/M1/M3); an on-chain schnorr-verifying gate independently cross-checked with a third party; **142 machine tests** that gate every commit; **a map of 271 ERCs** with its method published; and the draft standard **ERC-8370, "Inheritable Agent Mandates,"** under editor review as pull request #1930.
 
 > A note before we start. This is a working draft, written by one person, and I've tried to
 > keep it honest rather than impressive. It says what the idea is, what I've actually built,
 > and — on purpose — where it falls apart. Wherever a claim leans on guesswork or on reporting
 > I couldn't verify, I say so out loud. If you're here to poke holes, head straight for §6 and
-> §7; that's where the soft spots are, and I'd rather you find them than a customer.
+> §7; that's where the soft spots are, and I'd rather you find them than a customer. If you read
+> v0.7, the changes are concentrated in §1, §4, §5 and §8 — and one correction in §3, where a
+> measurement showed my own justification was wrong.
 
 ---
 
@@ -70,6 +72,34 @@ place a control *does* travel to a spawned tree — ERC-8312's delegation-budget
 aggregate *spend* cap, but not the rest of the leash. What doesn't yet travel, welded to identity and
 non-strippable, is the **whole mandate** — payees, expiry, cascading freeze, generation counter —
 bounding what each child is *allowed to be*, clause by clause, not only what the lineage may spend.
+
+Since v0.7 I stopped asserting that and went and counted. Titles mislead badly in this space —
+"agent", "delegation" and "permission" turn up in proposals with nothing to do with one another —
+so the corpus was ranked by content, not by name. Every ERC in `ethereum/ERCs` was listed (**611
+files**); those numbered ≥ 7000 were kept (**271**); their full text was downloaded, about 5.1 MB,
+and scored against eleven concept patterns — delegation, attenuation, sub-agent, inheritance, cap,
+revocation, expiry, identity, AI-agent, caveat, session. The top of that ranking was then read end
+to end, specification *and* discussion thread. The method is published with the map so it can be
+checked rather than believed.
+
+**None of the 271 standardizes attenuated re-delegation:** a child that comes into existence
+already bounded by its parent, on every clause, with the bound non-strippable.
+
+And the nearest candidate deserves precision rather than a claim of victory. ERC-8226's mandate is
+keyed by `(agent, principal)` and only the principal can grant, so an agent holding a valid mandate
+cannot create anything at all. Grepping its reference implementation for the vocabulary of lineage
+— `child|parent|sub-?agent|inherit|lineage|spawn|attenuat` — returns only `@inheritdoc`, a
+documentation tag. The concept is absent from the code, not merely from the prose. **That is not a
+defect.** One of its authors said so directly on my own thread, and was right: under their model a
+spawned child inherits nothing, *including the authority to act*, so reproduction cannot be used to
+escape a mandate. Inheritance is out of scope by design. The honest phrasing is "ERC-8226 does not
+define mandate inheritance," never "ERC-8226 can be bypassed." The same care applies to the rest:
+8199 refuses granular sharing on principle, 8273 is transaction-scoped by construction, 7715 is a
+request protocol rather than an enforcement layer. Four different answers to four different
+questions, none of them an oversight.
+
+**The square is empty because nobody has claimed it, not because everybody missed it.** That is a
+weaker and more useful statement than novelty, and it is the one the evidence supports.
 
 ### 1.1 — Two things that share my word but aren't my idea
 
@@ -191,11 +221,58 @@ not the baseline; the baseline is what's built.)*
 A **kill switch still cascades**: freeze a parent and the whole branch below goes dark, because an
 agent is "alive" only if it *and every ancestor* are unfrozen and unexpired.
 
-One last hole to close: ERC-8004 identities are *transferable* NFTs, and transferring one wipes
-the wallet — so nothing tied to identity survives a transfer by default. My reference design makes
-the identity **non-transferable (soulbound)**: identity is welded to lineage, so you can't dodge
-the leash by handing the token to a fresh, unbound owner. Guaranteeing that ecosystem-wide
-probably needs a standards-level change, not just my contract (§8).
+Two clauses were added to the specification on 26 August, both of them worked out in public with a
+reviewer on the discussion thread, and both narrower and duller than they sound — which is why they
+matter.
+
+**Effective expiry is a chain minimum.** The cap already was one; expiry was not, and the asymmetry
+was a bug in the writing rather than in the intent. An agent whose own deadline is distant but
+whose grandparent has lapsed must be dead. I measured the version that got this wrong: an agent
+kept spending for **150 days** past a lapsed ancestor.
+
+**`isActive` MUST NOT revert.** It returns `false` where it cannot establish liveness. This is a
+requirement on the interface, not a patch for one arithmetic path, and the reason is structural:
+because the predicate walks the chain, one value written by one ancestor decides the outcome for
+every descendant, and *whoever wrote it is not who loses*. A consumer reading at consumption has no
+correct answer to a revert — treating it as inactive hands any ancestor a denial switch over a
+subtree it does not own; treating it as active is a silent spend against a predicate nobody could
+read; catching and choosing is the consumer inventing an answer the standard never gave. A revert
+is loud, but loud at the wrong party.
+
+And one that closes a quiet failure rather than a loud one: **a matching mandate root is not
+authority.** An identity commitment binds clauses; it binds nothing set after the write. A consumer
+that pins a commitment and later verifies it learns that the clauses are unchanged and learns
+nothing about freeze or expiry. Consumers must read `isActive` **at consumption**, not at pin time.
+Nothing reverts, the pin verifies, and a frozen subtree spends.
+
+One last hole to close, and this is the place where measurement overturned my own prose. ERC-8004
+identities are *transferable* NFTs. Until v0.7 this paper justified a soulbound identity by
+claiming that a transfer **detaches** whatever was bound to it. **I ran it against the deployed
+ERC-8004 registries on Base Sepolia, and the opposite is true.** The `agentWallet` is indeed
+cleared, per their specification — but a clause attached through their metadata extension
+*survives the sale*, and the new owner rewrote it in a single transaction: cap from 1 000 to
+999 999 999, telomere from 3 to 255, no refusal anywhere.
+
+So the danger is not that clauses vanish when an identity is sold. It is that they **persist
+while appearing to hold**, in the hands of the one party they were meant to bind. A control
+clause that obeys the party it constrains is not a control clause.
+
+The conclusion — a **non-transferable (soulbound)** identity, welded to lineage — survives. Its
+*reason* did not, and I corrected the specification (commit `2d070f6`) before publishing any of
+these results. Guaranteeing non-transferability ecosystem-wide probably still needs a
+standards-level change, not just my contract (§8).
+
+The same run turned up something larger than my own question, and I report it because it belongs
+to whoever reads a reputation score. `ReputationRegistry` indexes feedback on `agentId`, and the
+contract carries no transfer hook — no `_update`, nothing equivalent. The token changes hands;
+the reviews stay glued to the number. **Buying the identity buys the reputation.** Their registry
+already refuses self-feedback — *"Self-feedback not allowed"* — which is exactly what makes the
+gap notable: you cannot manufacture your own standing, but you can purchase someone else's. Their
+Security Considerations cover sybil resistance, pointer permanence, validator incentives and
+uncryptographic capability claims; transferable reputation is not among them. This may well be a
+deliberate design choice — an identity that sells with its history is right for some uses. Then it
+deserves to be written down, because anyone reading a score today assumes it was earned by whoever
+carries it.
 
 ---
 
@@ -228,6 +305,51 @@ proportional to the tree, impractical at scale — and one that is *read* up the
 cost. I read the before/after `isActive` of every agent at two block heights to confirm it, rather
 than trusting the transaction that did it.
 
+**Since v0.7: conservation, and a budget that has to add up.** `InheritableAgentMandateV3` is
+deployed on Base Sepolia and carries an invariant the earlier revisions did not — the books have to
+close. What a gate received must equal what it spent plus what it returned, and the reclamation
+path is metered against that identity rather than trusted. Thirteen contracts now run on that
+testnet: three mandate revisions, three gates, a provenance registry in two versions, a contestation
+registry, a structured budget, an exception seam with a multi-guardian threshold, an aggregate
+lineage cursor, and a decision record. Every one of them is unaudited, holds nothing of value, and
+exists to be exercised in public rather than described.
+
+**142 machine tests gate every commit**, and a pre-commit hook refuses the commit outright when
+they fail. They are not decoration: the invariant suite alone refuses a child that renews its own
+telomere, one that switches off an inherited lease, one that widens its cap, one that names a payee
+outside its parent's list, one whose parent pointer lies, and one whose expiry outlives its
+parent's — and it observes a lineage's expiries descending, 5 000 000 → 4 999 500, to check the
+monotonicity transitively rather than asserting it.
+
+**Seven defects, found and closed before anything was deployed.** The fifth revision was written,
+then handed to an adversarial model with the source and no hint as to which checks existed. It came
+back with six. My own bench found the seventh — an agent surviving 150 days past a lapsed ancestor,
+which is what taught me expiry needed the chain minimum of §3. All seven were closed before the
+contract touched a chain. I report the number rather than the absence of numbers, because a
+revision that goes out claiming zero defects has usually just not been attacked.
+
+One of those seven deserves naming, because it also affects the revision that *is* deployed.
+**`spawn` accepts a child owner of zero.** Such a child is debited against its lineage like any
+other, and no party can ever act for it. Under any death condition the child or its owner must
+reach, that slice never becomes reclaimable — it does not merely sit unused, it sits outside the
+conservation rule, which then cannot close for that lineage. I measured it on the deployed V3: forty
+ether of delegation budget, burned irrecoverably. The general requirement is not the zero check:
+**reclamation needs a death condition reachable without the child's cooperation.** A time-based
+trigger satisfies it; a cooperative one does not. Conservation that depends on the constrained party
+choosing to cooperate is not conservation.
+
+**A clone shares the budget; it does not multiply it.** Against a neighbouring draft that makes an
+agent credential single-use through a zero-knowledge nullifier, I ran the case its guarantee leaves
+open. A clone that copied the agent's memory wins the race by construction — it does not wait for a
+reasoning loop. So: *what did the clone win?* On Base Sepolia the legitimate agent spent
+4 000 000 000 000 000 wei and succeeded; the clone presented a different action, a different salt, a
+different commitment, a freshly signed verdict and an unused nonce — and was refused for one wei,
+`over effective cap`. **Nothing was replayed.** A nullifier registry would have seen two perfectly
+legitimate consumptions and accepted both. The clone got nothing because the bound is welded to the
+identity rather than to the credential: `spent` accumulates across every execution regardless of how
+many credentials exist. **N clones of one agent share one budget** — the inverse of the intuition
+that credential systems invite, where N credentials read naturally as N budgets.
+
 **What it doesn't yet do, in the spirit of §7.** The control substrate and the agent still run in the
 *same* process; a real deployment needs them genuinely separated — a trusted external runtime, or
 attestation — so the prototype shows the *shape* of external control, not final-grade assurance. The
@@ -258,6 +380,23 @@ signature but never read the verdict's approve/reject decision, so a *reject* wo
 action. It's fixed, with a test that submits two genuinely-signed verdicts over the same action where
 only the word differs — the reject reverts, only the approve spends. I'd rather report the hole I
 found in myself than have a customer find it.
+
+And there is a gap inside the metered layer itself that I used to assert and can now put a number
+on. **Metering is not enforcement.** A contract that *reads* a cap does not physically stop an agent
+moving value by a path that never consults it. I built a bench that stands the same asset up twice
+and prints what the machine does, asserting nothing. Under the first regime a direct path survives
+beside the gate: the gate behaves correctly throughout, refuses the overage with `over cap`, and
+counts 100 ether — while the payee receives **600**. Five hundred ether moved outside any meter,
+past a guardrail that was working. Under the second regime the asset accepts no unguarded path, and
+the identical run ends at exactly the cap; the direct call is refused with `no unguarded path`, the
+gated function called without the gate with `not the guard`, and an undeclared path with `path not
+declared`.
+
+That is the whole argument for why the chain is one layer rather than the answer, and it is worth
+stating as the obligation it implies: closing the gap takes a substrate where the metered path is
+the *only* path — either custody, where the substrate holds the assets, or an execution gate whose
+sole path checks the mandate. Which is preferable I leave open. What I will not do any more is
+claim the property without the measurement.
 
 The **human** layer is a guardian (ideally proof-of-personhood, not one hot key) where the very
 act that grants life — renewing the lease — is the same act that can withhold it. And the
@@ -304,6 +443,19 @@ watching), and only at a cost. Nothing here is absolute.
 **It governs money and identity, not thought.** This is not an alignment technique. It does nothing
 about a model that lies, hallucinates, schemes, or misreads what you wanted.
 
+**Metering still isn't enforcement.** §5 now measures the gap rather than asserting it — 500 ether
+moved past a gate that was working correctly — and closing it is a substrate obligation this
+standard states but does not discharge.
+
+**Two limits I named in the specification rather than discovered later:** the population of a
+lineage is not bounded — the telomere caps depth, not breadth — and nothing here guards funds. The
+mandate says what may be spent; it does not hold the money.
+
+**A child with no owner is unreclaimable.** `spawn` must reject a zero child owner, and the deployed
+revision does not. Forty ether of delegation budget, measured, burned irrecoverably (§4). The
+general form is the part worth carrying: reclamation needs a death condition reachable **without the
+child's cooperation.**
+
 **The soulbound guarantee probably needs a standard, not just my contract.** **A compromised
 guardian key is total control** — so the guardian should never be a single hot key. **The per-child
 ceiling doesn't bound aggregate spend** — many siblings, each under the cap, can together exceed the
@@ -325,6 +477,15 @@ with** ERC-8004 (identity), ERC-8001 (the agent mandate it inherits), ERC-8312 (
 Actions), ERC-8226 (clauses), and ERC-7710 (delegation) — to sit on top of them, not replace them.
 A minimal reference implementation comes with it.
 
+It is now **under editor review as pull request #1930** against `ethereum/ERCs`. Review has already
+changed it. A reviewer working through the specification found a contradiction between what the
+prose required of `isActive` and what the deployed contract did; I verified the claim against the
+source before conceding it, found it correct, and the three clauses of §3 came out of that exchange.
+Two of them — totality, and the pinned root that is not authority — are requirements I would not
+have arrived at alone, because they describe how a *consumer* fails rather than how the contract
+fails. That is the argument for putting a draft under public review before it is finished rather
+than after.
+
 ---
 
 ## 9. In one honest paragraph
@@ -336,10 +497,20 @@ the *ownership* of ERC-42424 or the *permissions* of enterprise IAM — every cl
 nearest mover (ERC-8312) has taken the aggregate-*spend* slice of exactly this — one shared cap
 across a delegation tree — which leaves the narrower, un-taken piece: the *whole* mandate (payees,
 expiry, cascading freeze, generation counter) inherited and welded to identity, beyond the spend
-total. The space around it is filling with money and moving fast. The point I care about most is smaller and, I hope, more
-durable than any land grab: **governable beats sovereign.** A body no one can freeze is a body no
-one can govern — and the honest place to stand is the controllable notch, while saying plainly
-where even that gives out.
+total. The space around it is filling with money and moving fast.
+
+What changed between v0.7 and this draft is not the idea; it is how much of it has been made to
+stand up under something other than my own say-so. A survey of 271 standards replaced a claim about
+the gap. A measurement against deployed registries **overturned my own justification for the
+soulbound identity** and I corrected the paper rather than the measurement. A bench turned "metering
+is not enforcement" from a sentence into 500 ether moving past a working gate. Seven defects were
+found in an unreleased revision and closed before it touched a chain, six of them by a model
+instructed to break it. Public review produced two requirements I would not have reached alone. Each
+of those made the paper smaller and more specific, and I count that as the work going well.
+
+The point I care about most is smaller and, I hope, more durable than any land grab: **governable
+beats sovereign.** A body no one can freeze is a body no one can govern — and the honest place to
+stand is the controllable notch, while saying plainly where even that gives out.
 
 ---
 
@@ -348,6 +519,10 @@ where even that gives out.
 - ERC-8004 — Trustless Agents. https://eips.ethereum.org/EIPS/eip-8004
 - ERC-8226 — Regulated Agent Mandate (draft). https://eips.ethereum.org/EIPS/eip-8226
 - ERC-7710 — Smart Contract Delegation. https://eips.ethereum.org/EIPS/eip-7710
+- ERC-8312 — Bounded Agent Actions (draft; aggregate spend across a delegation tree). https://eips.ethereum.org/EIPS/eip-8312
+- ERC-8370 — Inheritable Agent Mandates (this proposal), pull request #1930. https://github.com/ethereum/ERCs/pull/1930
+- ERC-8370 discussion thread, Ethereum Magicians. https://ethereum-magicians.org/t/29275
+- *A map of on-chain agent-mandate standards* — 271 ERCs ranked by content, six read in full, method published. `interop/standards-map.md`
 - ERC-42424 — Inheritance Protocol for On-Chain AI Agents (draft; ownership succession). https://erc42424.org/
 - Coinbase CDP — Policy Engine. https://www.coinbase.com/developer-platform/discover/launches/policy-engine
 - thirdweb — Asset-Enforced Spend Mandate proposal. https://blog.thirdweb.com/ethereum-new-spend-mandate-proposal-puts-guardrails-on-ai-agent-wallets/
@@ -358,5 +533,5 @@ where even that gives out.
 - OpenAI test-model sandbox escape — reporting, July 2026. https://www.washingtonpost.com/technology/2026/07/21/openais-latest-ai-agent-escaped-security-controls-hacked-tech-company/
 - Oak — US$60M seed for AI-agent identity (TechCrunch, 2026). https://techcrunch.com/2026/07/15/backed-by-60m-in-funding-oak-steps-out-of-stealth-to-fix-the-identity-mess-that-ai-agents-are-making-worse/
 
-*Draft for discussion. Tear into it — the honest failure modes in §6 and §7 are the parts most
-worth attacking.*
+*Draft for discussion, v0.8, 1 September 2026. Tear into it — the honest failure modes in §6 and §7
+are the parts most worth attacking, and §7 is longer than it was.*
