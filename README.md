@@ -25,6 +25,45 @@ deuxième enfant est refusé — **y compris à 1 wei** :
 conservation: exceeds parent unallocated budget
 ```
 
+## ETHOnline 2026 — Continuity Track: what existed before, what was built during
+
+*This project did not start at this hackathon. Under the Continuity Track that has to be
+stated plainly and shown, not glossed. Everything in this section is checkable against the
+commit history.*
+
+### Before the event (up to 4 September 2026, 18:00 CEST)
+
+The repository opened on **30 July 2026**. By the time the event began it carried:
+
+| | |
+|---|---|
+| Specification | **ERC-8370**, under editor review as [pull request #1930](https://github.com/ethereum/ERCs/pull/1930) |
+| Public review | [Discussion thread](https://ethereum-magicians.org/t/29275), 47 messages, authors of neighbouring standards engaged |
+| Whitepaper | v0.8, `whitepaper/inheritable-agent-mandates.md` |
+| Contracts on Base Sepolia | **13**, including three mandate revisions and three gates — see [`DEPLOYMENTS.md`](DEPLOYMENTS.md) |
+| Reference contract on Base mainnet | `0x1C905e…De48`, Sourcify `exact_match` |
+| Machine tests | **142**, gating every commit through `.githooks/pre-commit` |
+| Standards survey | **271 ERCs** ranked by content, method published — [`interop/standards-map.md`](interop/standards-map.md) |
+| Commits | 57, incremental, no squashed drop |
+
+The core invariant was already in place: a child mandate is a subset of its parent on every
+clause, and it loses one generation at birth.
+
+### During the event (4–13 September 2026)
+
+> ⚠️ **TO FILL IN — do not submit with this placeholder in place.**
+>
+> One heading per new feature. For each one, state:
+> 1. **what it is** — named, not described as an intention;
+> 2. **what it makes possible** that was not possible before the event;
+> 3. **how to run it** — one command a judge can paste;
+> 4. **the commits**, so the claim is checkable rather than trusted.
+>
+> Polish and bug fixes do not qualify under this track. New features, newly integrated
+> services, or a significant architectural change do.
+
+---
+
 ## Le résultat qui tient en un chiffre
 
 **63 239 gaz pour éteindre une lignée de quatre générations. Le même chiffre pour quatre
