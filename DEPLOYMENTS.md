@@ -26,6 +26,69 @@ sont du même type : jetables, testnet, écrites dans `.env` (gitignoré) et jam
 | [`MandateAwareAggregateCursor`](contracts/MandateAwareAggregateCursor.sol) | [`0x839542d75e5846227ea2a9b685a9afd1a1563b6e`](https://sepolia.basescan.org/address/0x839542d75e5846227ea2a9b685a9afd1a1563b6e) | 5 955 o | ci-dessous |
 | [`MandateDecisionRecord`](contracts/MandateDecisionRecord.sol) | [`0x05544ed4823587534612cc7159019c109ed0c48b`](https://sepolia.basescan.org/address/0x05544ed4823587534612cc7159019c109ed0c48b) | 5 361 o | ci-dessous |
 
+| [`InheritableAgentMandateV5`](contracts/InheritableAgentMandateV5.sol) | [`0x299ee791afed7d89548dc9133af8387701617f70`](https://sepolia.basescan.org/address/0x299ee791afed7d89548dc9133af8387701617f70) | 7 566 o | ci-dessous |
+
+
+## `InheritableAgentMandateV5` — la reprise (Base Sepolia)
+
+> **Contrat de référence, non audité, ne détient aucun fonds.** Testnet uniquement.
+
+```
+adresse : 0x299ee791afed7d89548dc9133af8387701617f70
+tx      : 0xa0788e73fe8f1dbfdd7bf21280dbbf7d7dcc4dc23239137af0e187d3ee4c304d
+bloc    : 46564741 · gaz 1 711 910 · code 7 566 o
+```
+
+Une première instance a été déployée à
+[`0x5d611368…df7e`](https://sepolia.basescan.org/address/0x5d611368f8469a79f8453f8f3324f0e5bd09df7e)
+puis **abandonnée** : le script y estimait le `spawn` avant que le nœud RPC ait vu le `mint`,
+et l'estimation échouait sur un état où le parent n'existait pas encore. Le contrat n'était pas
+en cause ; l'attente de visibilité manquait dans le script. Elle a été remise, et cette instance
+ne doit pas être citée.
+
+`allocatedOf` ne faisait que monter. Un enfant mort — expiré sur sa propre horloge, ou gelé par
+le gardien — immobilisait sa tranche du budget du parent pour toujours. `reclaim` ouvre le chemin
+descendant, sur une condition de mort **atteignable sans la coopération de l'enfant**.
+
+### Ce qui a été exercé
+
+| # | scénario | transaction | résultat |
+|---|---|---|---|
+| 1 | l'enfant est gelé, puis repris | [`0x7f638e26…`](https://sepolia.basescan.org/tx/0x7f638e26dc74f529445e63bef4e22520a8e4d7825f73d0ce544ad45ba84371f3) | `success` · 59 694 gaz · 40 ETH rendus |
+| 2 | enfant **vivant** sous un parent gelé | [`0x877bbbd2…`](https://sepolia.basescan.org/tx/0x877bbbd2ebd7fd643bd2d68a03ff613dd8401e74408800d0b9f552470bcdc470) | **`reverted`** — `child not dead` |
+| 3 | l'enfant expire seul, personne n'intervient | [`0x6d4f43f1…`](https://sepolia.basescan.org/tx/0x6d4f43f18ae8d71b02bf5be0d00abd6782d3d07cc0ff65f7b9f9b14643536596) | `success` après **68 s** d'horloge réelle |
+
+### L'état lu en chaîne après coup, pas dans le journal du script
+
+```
+scénario 1   reclaimed(2) = true    availableBudget(1) = 100 ETH   (60 avant la reprise)
+scénario 2   reclaimed(4) = false   availableBudget(3) =  60 ETH   (la tranche reste bloquée)
+scénario 3   reclaimed(6) = true    allocatedOf(5) = 0             availableBudget(5) = 100 ETH
+```
+
+Le journal du script imprimait 60 au scénario 3 : une lecture émise avant que le nœud ait vu la
+transaction de reprise. **Le contrat était juste, la lecture était en retard.** C'est pourquoi les
+valeurs ci-dessus sont relues en chaîne après coup plutôt que reprises du journal.
+
+### Deux résultats de conception, vérifiés en chaîne
+
+**Le scénario 2 est le plus important.** Geler le parent rend l'enfant inactif — il ne peut plus
+agir — **mais ne le tue pas**. Sa tranche n'est pas reprenable, et la tentative reverte. Sans cette
+distinction, un gel à la racine confisquerait le budget de descendants qui n'ont rien fait.
+
+**`mandateRoot` de l'enfant est identique avant et après la reprise.** Marquer la reprise en
+mettant son plafond à zéro aurait été le réflexe, et aurait changé son identité — détachant toute
+enveloppe ERC-8312 épinglée dessus. La reprise écrit dans la comptabilité, jamais dans les clauses.
+
+### Rejouer
+
+```bash
+npx tsx scripts/compile.ts InheritableAgentMandateV5
+npx tsx scripts/deploy-mandate-v5.ts        # déploie une instance neuve et l'exerce
+```
+
+Exige `PRIVATE_KEY` dans `.env` et refuse toute chaîne autre que Base Sepolia.
+
 Une première instance de `MandateWithException` a été déployée à
 [`0x6bfe54b2…3c51`](https://sepolia.basescan.org/address/0x6bfe54b247def01bd7c678333a04b018fb0b3c51)
 avec deux adresses gardiennes sans clé connue — donc inopérable au-delà du seuil. Elle est
