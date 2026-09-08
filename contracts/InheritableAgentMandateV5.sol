@@ -51,10 +51,14 @@ contract InheritableAgentMandateV5 {
     /// Périodes déjà payées. Vit HORS de `mandateRoot` : renouveler ne change pas l'identité.
     mapping(uint256 => uint16) public periodsUsed;
 
+    /// Part déjà rendue au parent. Une reprise ne se rejoue pas.
+    mapping(uint256 => bool) public reclaimed;
+
     event Minted(uint256 indexed id, address owner);
     event Spawned(uint256 indexed childId, uint256 indexed parentId);
     event Frozen(uint256 indexed id);
     event Renewed(uint256 indexed id, uint16 periodsUsed, uint64 newExpiry);
+    event Reclaimed(uint256 indexed childId, uint256 indexed parentId, uint256 amount);
 
     modifier onlyGuardian() {
         require(msg.sender == guardian, "not guardian");
@@ -232,6 +236,74 @@ contract InheritableAgentMandateV5 {
         require(exists(id), "unknown id");
         mandateOf[id].frozen = true;
         emit Frozen(id);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  REPRISE — le chemin descendant qu'`allocatedOf` n'avait pas
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// @notice Mort PROPRE au nœud : gelé, ou bail commencé puis expiré.
+    /// @dev    Volontairement PAS `!isActive(id)`. `isActive` remonte la chaîne, donc il
+    ///         rend `false` pour un enfant bien vivant dont un ancêtre est mort. Reprendre
+    ///         sur ce critère ferait qu'un gel de la racine rendrait au gardien le budget
+    ///         d'enfants qui n'ont rien fait — la mort d'autrui n'est pas la sienne.
+    /// @dev    Les deux conditions retenues sont atteignables SANS la coopération de
+    ///         l'enfant : l'expiration vient de l'horloge, le gel vient du gardien. C'est
+    ///         l'exigence même que le défaut de l'enfant sans propriétaire avait mise au
+    ///         jour — une conservation qui dépend de la partie contrainte n'en est pas une.
+    function isDead(uint256 id) public view returns (bool) {
+        if (!exists(id)) return false;
+        Mandate storage m = mandateOf[id];
+        if (m.frozen) return true;
+        if (m.periodStart == 0) return false;          // sans bail, pas d'expiration
+        if (block.timestamp < m.periodStart) return false;
+        (uint64 e, bool ok) = _expiry(id);
+        if (!ok) return true;                          // échéance indéfinissable : mort
+        return block.timestamp > e;
+    }
+
+    /// @notice Ce qu'une reprise rendrait au parent, ou 0 si elle n'est pas ouverte.
+    /// @dev    On ne rend que le RESTE NON ALLOUÉ de l'enfant. La part qu'il a lui-même
+    ///         transmise reste comptée jusqu'à ce que ses propres enfants soient repris —
+    ///         la reprise remonte donc depuis le bas, une génération à la fois. Rendre le
+    ///         plafond entier créerait de la monnaie : la tranche serait comptée deux fois,
+    ///         une chez le parent redevenu libre, une chez le petit-enfant qui la détient.
+    function reclaimableOf(uint256 childId) public view returns (uint256) {
+        if (!exists(childId)) return 0;
+        if (reclaimed[childId]) return 0;
+        if (parentOf[childId] == 0) return 0;          // la genèse n'a personne à rembourser
+        if (!isDead(childId)) return 0;
+        return mandateOf[childId].maxSpendWei - allocatedOf[childId];
+    }
+
+    /// @notice Rend au parent la part non allouée d'un enfant mort.
+    /// @dev    N'ÉCRIT RIEN dans le mandat de l'enfant. Mettre son plafond à zéro serait la
+    ///         façon intuitive de marquer la reprise — et changerait `mandateRoot`, donc son
+    ///         identité, ce que le standard interdit. La reprise est une écriture de
+    ///         comptabilité, jamais une écriture de clause.
+    /// @dev    Appelable par le propriétaire du parent ou par le gardien : ceux qui portent
+    ///         la perte. L'enfant n'est protégé ni par eux ni contre eux, mais par la
+    ///         condition de mort, qui est vérifiable par quiconque.
+    /// @dev    LIMITE, dite plutôt que tue : ce contrat compte des ALLOCATIONS, pas des
+    ///         dépenses. Ce qu'un enfant a réellement dépensé vit dans le portail qui le
+    ///         mesure. Un substrat qui métrologie la dépense doit réconcilier les deux ;
+    ///         ici, rendre le reste non alloué est le maximum défendable sans mentir.
+    function reclaim(uint256 childId) external returns (uint256 amount) {
+        require(exists(childId), "unknown id");
+        uint256 parentId = parentOf[childId];
+        require(parentId != 0, "genesis has no parent");
+        require(!reclaimed[childId], "already reclaimed");
+        require(isDead(childId), "child not dead");
+        require(
+            msg.sender == ownerOf[parentId] || msg.sender == guardian,
+            "not parent owner nor guardian"
+        );
+
+        amount = mandateOf[childId].maxSpendWei - allocatedOf[childId];
+        reclaimed[childId] = true;
+        allocatedOf[parentId] -= amount;
+
+        emit Reclaimed(childId, parentId, amount);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
