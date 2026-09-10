@@ -41,8 +41,8 @@ The honest statement first, because a partial one would be worse than none:
 
 | Area | Files | What AI drafted | What that draft went through |
 |---|---|---|---|
-| `contracts/` | 16 | all Solidity, including the five mandate revisions | compiled, deployed to Base Sepolia, and attacked. V5 entered adversarial review with **7 defects**: 6 found by DeepSeek, 1 by the repository's own bench (an agent surviving 150 days past a lapsed ancestor). All 7 closed before any deployment. |
-| `integration/test/` | 27 | all Foundry tests | tests exist *because* a draft claim needed refuting. `V5SixDefauts.t.sol` is one test per defect found by the adversary; `V5Attaque.t.sol` and `V5Totalite.t.sol` likewise. |
+| `contracts/` | 16 | all Solidity, including the five mandate revisions, and `reclaim` written during the event | compiled, deployed to Base Sepolia, and attacked. V5 entered adversarial review with **7 defects**: 6 found by DeepSeek, 1 by the repository's own bench (an agent surviving 150 days past a lapsed ancestor). All 7 closed before any deployment. |
+| `integration/test/` | 28 | all Foundry tests | tests exist *because* a draft claim needed refuting. `V5SixDefauts.t.sol` is one test per defect found by the adversary; `V5Attaque.t.sol` and `V5Totalite.t.sol` likewise. |
 | `scripts/` | 24 | deployment and exercise scripts | each was executed against a live chain. A script that was never run is not evidence and is not counted here. |
 | `src/` | 12 | the TypeScript agent runtime | exercised by `npm run reproduce` and `tests/invariants.ts`. |
 | `method/simulations/` | 4 | the four simulations | they execute and print pass/fail counts. Their described outcomes were rewritten after running them, because the descriptions written from memory were wrong. |
@@ -50,13 +50,37 @@ The honest statement first, because a partial one would be worse than none:
 | `interop/`, `conformance/` | 6 | comparison harnesses and the verdict verifier | `standards-map.md` records conclusions drawn from reading 271 ERCs. |
 | `eip/`, `whitepaper/`, `vulgarise/` | 6 | prose drafts | argued and revised in public on the standards forum, including where a reviewer refused a position and was right. |
 
+### Work done during ETHOnline 2026 (4-13 September)
+
+The event's rules ask that attribution cover the submitted work, so the hackathon window is
+called out separately rather than folded into the rows above.
+
+`reclaim`, its seven tests and the deployment script were drafted with Claude Code, in the same
+way as everything else in this repository, under the same `CLAUDE.md`. What the assistant did not
+do is choose the problem: the gap it closes was named in the whitepaper weeks earlier, as an open
+question in §3 and as a requirement in §4, and the decision to spend the window on that rather
+than on a new integration was made against the clock by the author.
+
+Three design decisions in that work went the other way from the assistant's first draft, and each
+is documented in the source: `isDead` is not `!isActive`, only the unallocated remainder is
+returned, and the child's mandate is never written to. The last one matters most and is the
+easiest to get wrong — zeroing a reclaimed child's cap is the intuitive move, and it would silently
+change the child's identity.
+
+One error is worth recording because it cost a deployment. The first instance went out at
+`0x5d611368` and its exercise failed: the script estimated `spawn` before the RPC node had seen
+the `mint`, so the estimate ran against a state where the parent did not exist. The contract was
+not at fault. The visibility wait present in the earlier V2 script had been dropped from the
+helper. It was restored, the instance was abandoned and marked as not to be cited, and
+`DEPLOYMENTS.md` records the state re-read from the chain rather than the script's own log.
+
 Two git identities appear in the history — `H. Mekaoui <animaticforge_beta@…>` and
 `Helmi Mekaoui <helmymekaoui@…>`. Both are the same person, one machine each. No one else
 has commit access.
 
 ## 3. Involvement — what was not delegated
 
-**54 commits, 30 July to 26 August 2026**, before and during the event. The history is
+**61 commits, 30 July to 10 September 2026**, before and during the event. The history is
 incremental and public; there is no squashed drop of generated code.
 
 What the human did, that no model did:

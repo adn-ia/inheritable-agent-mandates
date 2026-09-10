@@ -51,16 +51,60 @@ clause, and it loses one generation at birth.
 
 ### During the event (4–13 September 2026)
 
-> ⚠️ **TO FILL IN — do not submit with this placeholder in place.**
->
-> One heading per new feature. For each one, state:
-> 1. **what it is** — named, not described as an intention;
-> 2. **what it makes possible** that was not possible before the event;
-> 3. **how to run it** — one command a judge can paste;
-> 4. **the commits**, so the claim is checkable rather than trusted.
->
-> Polish and bug fixes do not qualify under this track. New features, newly integrated
-> services, or a significant architectural change do.
+#### Reclamation — giving a dead child's share back to its parent
+
+**What it is.** A budget in this standard is divided among children: when a child is born, its
+share is debited from the parent's `allocatedOf`. That number only ever went **up**. No function
+anywhere brought it down. So a child that died — expired on its own clock, or frozen by its
+guardian — held its slice of the parent's budget permanently. The lineage bled without anyone
+spending anything.
+
+`reclaim` adds the descending path, on a death condition **reachable without the child's
+cooperation** — because a dead child cannot be asked to agree. The clock reaches it. The guardian
+reaches it. The child is never asked.
+
+**What it makes possible.** Forty ether that were locked forever now return to the parent for
+59 694 gas, and the parent can spend them again. The whitepaper raised this as an open question
+in §3 — *does a dead child's unspent share return to the parent?* — and stated the requirement it
+implies in §4. It is now implemented, tested and exercised on a public chain.
+
+**Three design decisions, each verified:**
+
+- **`isDead` is deliberately not `!isActive`.** `isActive` walks the chain, so it reports `false`
+  for a perfectly healthy child whose ancestor died. Reclaiming on that basis would let a freeze
+  at the root confiscate the budget of descendants that did nothing. Death is local.
+- **Only the unallocated remainder is returned.** The share a child passed further down stays
+  accounted until its own children are reclaimed, so reclamation climbs one generation at a time.
+  Returning the full cap would mint budget — the same slice counted twice.
+- **It writes nothing into the child's mandate.** Zeroing its cap would have been the intuitive
+  way to mark it spent, and would have changed `mandateRoot` — the child's identity — detaching
+  any ERC-8312 envelope pinned to it. Reclamation is a bookkeeping write, never a clause write.
+
+**Run it.**
+
+```bash
+cd integration && forge test --match-path test/V5Reprise.t.sol -vv
+```
+
+Seven tests, including the measurement of what was lost before, the generation-by-generation
+climb with nothing double counted, and the live-child-under-a-frozen-parent case that must be
+refused. The full suite went from **142 to 149 tests**, 0 failing.
+
+**Exercised on Base Sepolia**, not only in a test harness —
+[`0x299ee791afed7d89548dc9133af8387701617f70`](https://sepolia.basescan.org/address/0x299ee791afed7d89548dc9133af8387701617f70):
+
+| Scenario | Transaction | Result |
+|---|---|---|
+| A frozen child is reclaimed | [`0x7f638e26…`](https://sepolia.basescan.org/tx/0x7f638e26dc74f529445e63bef4e22520a8e4d7825f73d0ce544ad45ba84371f3) | `Success` · 40 ether returned |
+| A **live** child under a frozen parent | [`0x877bbbd2…`](https://sepolia.basescan.org/tx/0x877bbbd2ebd7fd643bd2d68a03ff613dd8401e74408800d0b9f552470bcdc470) | **`Fail` — `child not dead`** |
+| A child expires on its own clock | [`0x6d4f43f1…`](https://sepolia.basescan.org/tx/0x6d4f43f18ae8d71b02bf5be0d00abd6782d3d07cc0ff65f7b9f9b14643536596) | `Success` after **68 s** of real clock |
+
+The second one was sent deliberately so the refusal lands in a block and can be cited rather than
+described.
+
+**Commits.** [`d0467e2`](../../commit/d0467e2) the function and its seven tests ·
+[`0bb4a23`](../../commit/0bb4a23) the deployment and what it exercised. Full record in
+[`DEPLOYMENTS.md`](DEPLOYMENTS.md).
 
 ---
 
