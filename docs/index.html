@@ -1,0 +1,154 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERC-8370 — Lineage Explorer</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--line:#30363d;--txt:#c9d1d9;--dim:#8b949e;
+        --gold:#e2b979;--ok:#7ee787;--bad:#f85149;--blue:#58a6ff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.6}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 22px 80px}
+  .kick{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  h1{font-size:32px;margin:10px 0 6px;color:#fff;letter-spacing:-.02em}
+  .sub{color:var(--dim);margin:0 0 26px}
+  .sub a{color:var(--blue);text-decoration:none}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:24px}
+  input{background:var(--card);border:1px solid var(--line);color:var(--txt);
+        padding:10px 13px;border-radius:8px;font-size:15px;width:110px;font-family:inherit}
+  button{background:var(--gold);border:0;color:#1a1200;padding:10px 18px;border-radius:8px;
+         font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+  button:disabled{opacity:.5;cursor:default}
+  .hint{color:var(--dim);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:18px 20px;margin-bottom:14px}
+  .card h2{margin:0 0 4px;font-size:19px;color:#fff}
+  .card h2 .id{color:var(--gold)}
+  .par{color:var(--dim);font-size:13px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  td{padding:5px 0;vertical-align:top}
+  td:first-child{color:var(--dim);width:210px}
+  .mono{font-family:"SF Mono",Menlo,Consolas,monospace}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .gold{color:var(--gold)}
+  .depth{border-left:2px solid var(--line);margin-left:14px;padding-left:18px}
+  .note{background:#161b22;border-left:3px solid var(--gold);padding:14px 18px;
+        border-radius:0 8px 8px 0;margin:26px 0;font-size:14px;color:var(--dim)}
+  .note b{color:var(--txt)}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+         color:var(--dim);font-size:13px}
+  footer a{color:var(--blue);text-decoration:none}
+  .err{color:var(--bad);font-size:14px}
+</style></head><body><div class="wrap">
+
+<div class="kick">ERC-8370 &middot; Inheritable Agent Mandates</div>
+<h1>Lineage Explorer</h1>
+<p class="sub">Reads <span class="mono">InheritableAgentMandateV5</span> live on Base Sepolia &mdash;
+<a id="ctr" href="#" target="_blank"></a><br>
+Read-only. No wallet, no connection, nothing to sign.</p>
+
+<div class="bar">
+  <input id="aid" type="number" min="1" value="2">
+  <button id="go">Inspect lineage</button>
+  <span class="hint">Try <b>2</b> (reclaimed, budget returned) &middot; <b>4</b> and <b>6</b> (expired on their own clocks, still reclaimable)</span>
+</div>
+
+<div id="out"></div>
+
+<div class="note">
+<b>What to look at.</b> Every lease in this contract has now lapsed. These agents were created on
+8&nbsp;September with short leases, and they died on their own clocks, with nobody intervening &mdash;
+which is the death condition the standard requires: <b>reachable without the child's cooperation</b>.
+A dead child cannot be asked to agree, so the trigger must not need it.<br><br>
+Agent&nbsp;<b>2</b> shows <span class="gold">already reclaimed: yes</span> &mdash; its forty ether went back
+to agent&nbsp;1, whose unallocated budget is whole again. Agents&nbsp;<b>4</b> and&nbsp;<b>6</b> are dead and
+still reclaimable.<br><br>
+The case that cannot be shown here, because it depends on a moment that has passed, is a <i>live</i>
+child under a frozen parent: inactive, yet not dead, and its budget not yours to take. It was sent
+on chain so it could be cited rather than described &mdash;
+<a href="https://sepolia.basescan.org/tx/0x877bbbd2ebd7fd643bd2d68a03ff613dd8401e74408800d0b9f552470bcdc470" target="_blank">that transaction fails with <span class="mono">child not dead</span></a>.
+</div>
+
+<footer>
+Base Sepolia, testnet only, unaudited reference implementation &middot;
+<a href="https://github.com/adn-ia/inheritable-agent-mandates" target="_blank">source</a> &middot;
+<a href="https://ethereum-magicians.org/t/29275" target="_blank">discussion</a> &middot;
+<a href="https://github.com/ethereum/ERCs/pull/1930" target="_blank">pull request #1930</a>
+</footer>
+</div>
+
+<script type="module">
+const RPC = "https://sepolia.base.org";
+const C   = "0x299ee791afed7d89548dc9133af8387701617f70";
+document.getElementById("ctr").textContent = C;
+document.getElementById("ctr").href = "https://sepolia.basescan.org/address/" + C;
+
+const SEL = {                              // cast sig, verified
+  ownerOf:"0x6352211e", parentOf:"0xcfa3c132", mandateOf:"0x2d996646",
+  isActive:"0x82afd23b", isDead:"0x2dfd8ffe", availableBudget:"0xc16f1201",
+  reclaimableOf:"0xefa4775d", reclaimed:"0xf6b0e547", currentExpiry:"0x430765f1",
+};
+const pad = n => BigInt(n).toString(16).padStart(64,"0");
+async function call(data){
+  const r = await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({jsonrpc:"2.0",id:1,method:"eth_call",
+      params:[{to:C,data},"latest"]})});
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message);
+  return j.result;
+}
+const word = (hex,i)=>BigInt("0x"+hex.slice(2+i*64,66+i*64));
+const eth  = w => (Number(w)/1e18).toLocaleString(undefined,{maximumFractionDigits:4}) + " ETH";
+
+async function read(id){
+  const a = "0x" + pad(id);
+  const [own,par,man,act,dead,avail,recl,done] = await Promise.all([
+    call(SEL.ownerOf+pad(id)), call(SEL.parentOf+pad(id)), call(SEL.mandateOf+pad(id)),
+    call(SEL.isActive+pad(id)), call(SEL.isDead+pad(id)), call(SEL.availableBudget+pad(id)),
+    call(SEL.reclaimableOf+pad(id)), call(SEL.reclaimed+pad(id)),
+  ]);
+  return {
+    id, owner:"0x"+own.slice(26), parent:word(par,0),
+    cap:word(man,0), periodStart:word(man,1), periodLength:word(man,2),
+    periodCount:word(man,3), telomere:word(man,4), frozen:word(man,6)===1n,
+    active:word(act,0)===1n, dead:word(dead,0)===1n,
+    avail:word(avail,0), reclaimable:word(recl,0), reclaimed:word(done,0)===1n,
+  };
+}
+function card(n,depth){
+  const yn = (v,good)=>`<span class="${v===good?'ok':'bad'}">${v}</span>`;
+  return `<div class="card" style="margin-left:${depth*0}px">
+    <h2>agent <span class="id">${n.id}</span></h2>
+    <div class="par">${n.parent===0n?"genesis &mdash; no parent":"child of agent "+n.parent}</div>
+    <table>
+      <tr><td>spend cap</td><td class="mono gold">${eth(n.cap)}</td></tr>
+      <tr><td>unallocated budget</td><td class="mono">${eth(n.avail)}</td></tr>
+      <tr><td>telomere</td><td class="mono">${n.telomere} generation(s) left</td></tr>
+      <tr><td>lease</td><td class="mono">${n.periodLength} s &times; ${n.periodCount} period(s)</td></tr>
+      <tr><td>frozen</td><td class="mono">${yn(n.frozen,false)}</td></tr>
+      <tr><td>isActive()</td><td class="mono">${yn(n.active,true)}</td></tr>
+      <tr><td>isDead()</td><td class="mono">${yn(n.dead,false)}</td></tr>
+      <tr><td>reclaimable</td><td class="mono ${n.reclaimable>0n?'gold':''}">${eth(n.reclaimable)}</td></tr>
+      <tr><td>already reclaimed</td><td class="mono">${n.reclaimed?'<span class="gold">yes</span>':'no'}</td></tr>
+    </table></div>`;
+}
+async function go(){
+  const out = document.getElementById("out");
+  const btn = document.getElementById("go");
+  const id  = document.getElementById("aid").value;
+  btn.disabled = true; out.innerHTML = '<p class="hint">reading the chain…</p>';
+  try{
+    const chain = []; let cur = BigInt(id);
+    while(cur !== 0n && chain.length < 12){
+      const n = await read(cur); chain.push(n); cur = n.parent;
+    }
+    if(chain[0].owner === "0000000000000000000000000000000000000000")
+      throw new Error("no such agent on this contract");
+    let html = "", d = 0;
+    for(const n of chain.reverse()){ html += `<div class="depth" style="${d===0?'border:0;margin:0;padding:0':''}">`; d++; html += card(n,d); }
+    html += "</div>".repeat(chain.length);
+    out.innerHTML = html;
+  }catch(e){ out.innerHTML = `<p class="err">${e.message}</p>`; }
+  btn.disabled = false;
+}
+document.getElementById("go").onclick = go;
+document.getElementById("aid").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+go();
+</script></body></html>
