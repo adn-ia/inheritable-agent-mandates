@@ -1,8 +1,8 @@
 # Inheritable Agent Mandates
 ### A non-strippable, identity-anchored leash for autonomous on-chain AI agents
 
-**Author:** Helmy Mekaoui · **Version:** 0.8 (draft) · **Date:** 2026-09-01
-**Companion artifacts:** a reference contract (`InheritableAgentMandate`) **deployed and exercised on Base mainnet** (Sourcify `exact_match`); **thirteen contracts live on Base Sepolia**, including three mandate revisions and three gates; a working prototype (M0/M1/M3); an on-chain schnorr-verifying gate independently cross-checked with a third party; **142 machine tests** that gate every commit; **a map of 271 ERCs** with its method published; and the draft standard **ERC-8370, "Inheritable Agent Mandates,"** under editor review as pull request #1930.
+**Author:** Helmy Mekaoui · **Version:** 0.9 (draft) · **Date:** 2026-09-15
+**Companion artifacts:** a reference contract (`InheritableAgentMandate`) **deployed and exercised on Base mainnet** (Sourcify `exact_match`); **fourteen contracts live on Base Sepolia**, including four mandate revisions and three gates; a working prototype (M0/M1/M3); an on-chain schnorr-verifying gate independently cross-checked with a third party; **149 machine tests** that gate every commit; **a map of 271 ERCs** with its method published; and the draft standard **ERC-8370, "Inheritable Agent Mandates,"** under editor review as pull request #1930.
 
 > A note before we start. This is a working draft, written by one person, and I've tried to
 > keep it honest rather than impressive. It says what the idea is, what I've actually built,
@@ -213,10 +213,21 @@ a branch can't reproduce further.
 *(One honest caveat, because I'd rather state it than have it found. This per-child ceiling bounds
 each agent, and the depth of the tree, but not the total spend of many siblings: ten children under
 a €100 parent are each capped at €100, so their branch combined can spend more than €100. Bounding
-that aggregate would take a different, partitioned-budget variant — a parent handing out slices of
-its own allowance and debiting itself — which bounds the total but adds on-chain state and an awkward
-question (does a dead child's unspent share return to the parent?). I treat it as a design option,
-not the baseline; the baseline is what's built.)*
+that aggregate takes a different, partitioned-budget variant — a parent handing out slices of its
+own allowance and debiting itself — which bounds the total but adds on-chain state and an awkward
+question: does a dead child's unspent share return to the parent?*
+
+*That question is no longer open. The variant is built, deployed and exercised on a public chain
+(§4), and since 15 September it is written into the standard as a **named optional profile** with
+an answer attached: inside the profile, reclamation is mandatory, on a death condition reachable
+without the child's cooperation. It stays a profile rather than the baseline, because an
+implementation that needs only a per-agent ceiling should not have to carry allocation state.*
+
+*What remains honestly unsolved is narrower than it was. Debiting the immediate parent bounds the
+**width** of a lineage; it does not bound its **depth**. A child debited from its parent still
+starts its own allocation counter at zero, so a chain of D generations each re-issuing its full cap
+reaches D times the root's ceiling. A true aggregate bound needs every ancestor debited at spawn.
+That one I haven't built.)*
 
 A **kill switch still cascades**: freeze a parent and the whole branch below goes dark, because an
 agent is "alive" only if it *and every ancestor* are unfrozen and unexpired.
@@ -459,8 +470,10 @@ child's cooperation.**
 **The soulbound guarantee probably needs a standard, not just my contract.** **A compromised
 guardian key is total control** — so the guardian should never be a single hot key. **The per-child
 ceiling doesn't bound aggregate spend** — many siblings, each under the cap, can together exceed the
-root (§3); closing that needs the partitioned-budget variant, a design option I haven't taken as the
-baseline. And the honest commercial truth: my research suggests the corner is open, but
+root (§3); the partitioned-budget profile closes the width of that, and **not its depth**: a chain
+of generations each re-issuing its full cap still reaches a multiple of the root's ceiling, because
+only the immediate parent is debited. Bounding depth needs every ancestor debited at spawn, and I
+haven't built it. And the honest commercial truth: my research suggests the corner is open, but
 *who would pay for this, and how much,* is still a guess, and the base could be swallowed as a free
 feature by a big wallet platform tomorrow.
 
@@ -485,6 +498,21 @@ Two of them — totality, and the pinned root that is not authority — are requ
 have arrived at alone, because they describe how a *consumer* fails rather than how the contract
 fails. That is the argument for putting a draft under public review before it is finished rather
 than after.
+
+Two changes landed on 15 September. The first was a correction I should have caught earlier: the
+submitted text specified an interface keyed on `bytes32`, while every contract I have deployed is
+keyed on `uint256`. Anyone following the specification and calling the contract it names in its own
+reference section would have hit functions that do not exist. A second draft of the same standard
+had been living in the repository and had drifted into real contradictions with the submitted one —
+including a rule requiring a non-zero expiry that the cited contract's own comment contradicts.
+Both texts were reconciled into one, corrected against the deployed contracts rather than against
+either draft, and the duplicate is gone. Keeping two copies is what allowed the drift.
+
+The second is the **partitioned budget profile** described in §3: optional to adopt, but obliging
+reclamation once adopted, with the death condition and the locality of death as normative
+requirements rather than implementation notes. Its reference is the deployment in §4, including the
+transaction that *refuses* to reclaim from a live child under a frozen parent — a clause I would
+rather cite in a block than assert in prose.
 
 ---
 

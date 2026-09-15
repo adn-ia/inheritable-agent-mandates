@@ -106,6 +106,15 @@ described.
 [`0bb4a23`](../../commit/0bb4a23) the deployment and what it exercised. Full record in
 [`DEPLOYMENTS.md`](DEPLOYMENTS.md).
 
+**Since then, it has entered the standard.** On 15 September the mechanism was written into
+ERC-8370 as a **named optional profile** — *partitioned budget and reclamation* — in
+[pull request #1930](https://github.com/ethereum/ERCs/pull/1930). The profile is optional to adopt;
+reclamation is not optional once it is adopted. The three design decisions listed above stopped
+being implementation notes and became normative requirements: the death condition must be reachable
+without the child's cooperation, death must be local and must not be derived from `isActive`, and
+reclamation must not touch a mandate clause. The transaction that *refuses* to reclaim from a live
+child under a frozen parent is cited in the specification as the measurement of that second rule.
+
 ---
 
 ## Le résultat qui tient en un chiffre
